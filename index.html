@@ -2,431 +2,378 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Editor Edition</title>
+    <title>RPG Maker Studio - Dev Build</title>
     <style>
-        :root { --bg: #181818; --panel: #202020; --accent: #007acc; --text: #d4d4d4; --border: #333; --select-color: rgba(0, 122, 204, 0.3); }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+        body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
-        /* CSS ICONS */
-        .icon-undo::before { content: "↩"; margin-right:5px;}
-        .icon-upload::before { content: "📂"; margin-right:5px;}
-        .icon-save::before { content: "💾"; margin-right:5px;}
-        .icon-edit::before { content: "✏️"; margin-right:5px;}
-
         /* Toolbar */
-        .toolbar { background: var(--panel); padding: 8px 15px; display: flex; gap: 15px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border); padding-right: 15px; }
-        .group:last-child { border: none; }
+        .tools { background: #202020; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; }
+        .sep { width: 1px; height: 30px; background: #333; margin: 0 5px; }
         
-        label { font-size: 10px; font-weight: bold; color: #888; text-transform: uppercase; display: block; margin-bottom: 2px; }
+        label { font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; display: block; }
         
-        select, input { background: #333; border: 1px solid #555; color: white; padding: 4px; border-radius: 3px; font-size: 12px; }
-        input[type="number"] { width: 45px; text-align: center; }
+        select, input { background: #333; border: 1px solid #444; color: white; padding: 4px; border-radius: 3px; }
+        input[type="number"] { width: 40px; text-align: center; }
         
-        button { background: #333; color: #eee; border: 1px solid #555; padding: 5px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; }
-        button:hover { background: #444; border-color: #666; }
+        button { background: #333; color: #ddd; border: 1px solid #444; padding: 5px 10px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 5px;}
+        button:hover { background: #444; }
         button:active { transform: translateY(1px); }
-        button.primary { background: var(--accent); color: white; border: none; }
-        button.primary:hover { filter: brightness(1.1); }
+        .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
+        .btn-blue:hover { background: #005a9e; }
         
-        /* Workspace */
-        .workspace { flex: 1; display: flex; overflow: hidden; }
-        .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 2px solid var(--border); position: relative; }
+        /* Layout */
+        .main { flex: 1; display: flex; overflow: hidden; }
+        .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
         
-        .pane-header { 
-            background: #252526; padding: 6px 10px; font-size: 11px; color: #aaa; font-weight: bold; 
-            display: flex; justify-content: space-between; border-bottom: 1px solid var(--border);
+        .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        
+        .viewport { flex: 1; overflow: auto; background: #111; display: grid; place-items: center; position: relative; }
+        
+        /* Canvas */
+        canvas { 
+            image-rendering: pixelated; 
+            box-shadow: 0 0 20px #000; 
+            display: block; 
         }
-        
-        .canvas-wrapper { 
-            flex: 1; overflow: auto; background: #111; position: relative; 
-            display: grid; place-items: center;
-        }
-
-        /* Fundos */
-        .bg-grid {
+        .bg-check {
             background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
             background-size: 20px 20px;
         }
 
-        canvas { 
-            image-rendering: pixelated; 
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-            display: block;
-        }
-
-        /* Mouse Styles */
-        #srcCanvas { cursor: crosshair; }
-        #destCanvas { cursor: none; } /* Custom ghost cursor */
-
-        .statusbar { background: var(--accent); color: white; padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; font-weight: bold; }
+        /* Footer */
+        .bar { background: #007acc; color: white; padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; font-weight: bold; }
         
-        /* Input File escondido */
-        .hidden-upload { display: none; }
+        /* Utils */
+        .hide { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- TOOLBAR -->
-    <div class="toolbar">
-        <div class="group">
-            <div>
-                <label>Modo</label>
-                <select id="modeSelect" onchange="App.setMode(this.value)">
-                    <option value="tileset">Tileset (Mapas)</option>
-                    <option value="char">Characters / Sprites</option>
-                    <option value="faceset">Faceset</option>
-                    <option value="free">Livre / Battler</option>
-                </select>
-            </div>
+    <div class="tools">
+        <div>
+            <label>Tipo</label>
+            <select id="selMode">
+                <option value="tileset">Tileset (32px)</option>
+                <option value="char">Charset</option>
+                <option value="faceset">Faceset</option>
+                <option value="free">Livre</option>
+            </select>
         </div>
 
-        <div class="group">
-            <div>
-                <label>Grade (Snap)</label>
-                <div style="display:flex; gap:5px">
-                    <input type="number" id="gridW" value="32" onchange="App.updateGrid()" title="Largura">
-                    <input type="number" id="gridH" value="32" onchange="App.updateGrid()" title="Altura">
-                </div>
-            </div>
-            <div>
-                <label>Zoom</label>
-                <input type="range" min="1" max="4" step="0.5" value="1" oninput="App.setZoom(this.value)" style="width:70px">
+        <div class="sep"></div>
+
+        <div>
+            <label>Grid (W/H)</label>
+            <div style="display:flex; gap:2px">
+                <input type="number" id="inpW" value="32">
+                <input type="number" id="inpH" value="32">
             </div>
         </div>
-
-        <div class="group">
-            <button onclick="App.undo()"><span class="icon-undo"></span> Desfazer</button>
+        
+        <div>
+            <label>Zoom</label>
+            <input type="range" id="rngZoom" min="1" max="4" step="0.5" value="1" style="width:60px">
         </div>
 
-        <div class="group" style="margin-left: auto; border:none;">
-            <!-- Uploads -->
-            <button onclick="document.getElementById('uplSrc').click()"><span class="icon-upload"></span> Carregar Origem</button>
-            <button onclick="document.getElementById('uplDest').click()" style="border: 1px solid #007acc; color: #007acc"><span class="icon-edit"></span> Editar Tileset Existente</button>
-            <button class="primary" onclick="App.download()"><span class="icon-save"></span> Baixar Final</button>
+        <div class="sep"></div>
+        <button onclick="undo()">↩ Desfazer</button>
+
+        <div style="margin-left: auto; display:flex; gap: 10px;">
+            <button onclick="$('fSrc').click()"> Abrir Origem</button>
+            <button onclick="$('fDest').click()"> Editar Base</button>
+            <button class="btn-blue" onclick="save()"> Salvar</button>
             
-            <input type="file" id="uplSrc" class="hidden-upload" accept="image/*" onchange="App.handleUpload(this, 'src')">
-            <input type="file" id="uplDest" class="hidden-upload" accept="image/*" onchange="App.handleUpload(this, 'dest')">
+            <input type="file" id="fSrc" class="hide" accept="image/*">
+            <input type="file" id="fDest" class="hide" accept="image/*">
         </div>
     </div>
 
-    <!-- WORKSPACE -->
-    <div class="workspace">
-        <!-- ORIGEM (ESQUERDA) -->
-        <div class="pane">
-            <div class="pane-header">
-                <span>ORIGEM</span> 
-                <span style="color:#007acc">Arraste para selecionar vários</span>
+    <div class="main">
+        <!-- Esquerda -->
+        <div class="panel">
+            <div class="header">
+                <span>ORIGEM</span> <span style="color:#007acc">Segure & Arraste</span>
             </div>
-            <div class="canvas-wrapper bg-grid" id="srcWrapper">
-                <canvas id="srcCanvas"></canvas>
+            <div class="viewport bg-check" id="wrapSrc">
+                <canvas id="cSrc" style="cursor: crosshair;"></canvas>
             </div>
         </div>
 
-        <!-- DESTINO (DIREITA) -->
-        <div class="pane">
-            <div class="pane-header">
-                <span>DESTINO</span> 
-                <span>Clique para colar</span>
+        <!-- Direita -->
+        <div class="panel">
+            <div class="header">
+                <span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span>
             </div>
-            <div class="canvas-wrapper bg-grid" id="destWrapper">
-                <canvas id="destCanvas"></canvas>
+            <div class="viewport bg-check" id="wrapDest">
+                <canvas id="cDest" style="cursor: none;"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="statusbar">
-        <span id="statusText">Dica: Carregue um Tileset na direita para editar, ou um em branco para criar.</span>
-        <span id="coords">0, 0</span>
+    <div class="bar">
+        <span id="log">Pronto.</span>
+        <span id="pos">0, 0</span>
     </div>
 
     <script>
-        const App = {
-            state: {
-                gridW: 32, gridH: 32,
-                zoom: 1,
-                isSelecting: false, // Se está arrastando na origem
-                selStart: {x:0, y:0}, // Onde começou o clique
-                selRect: {x:0, y:0, w:0, h:0}, // Retângulo final da seleção
-                clipboard: null, // Bitmap copiado
-                history: [],
-                historyIndex: -1
-            },
-            
-            els: {},
+        const $ = id => document.getElementById(id); // atalho basico
 
-            init() {
-                // Mapear elementos
-                ['srcCanvas', 'destCanvas', 'srcWrapper', 'destWrapper', 'gridW', 'gridH'].forEach(id => this.els[id] = document.getElementById(id));
-                
-                this.els.srcCtx = this.els.srcCanvas.getContext('2d', { willReadFrequently: true });
-                this.els.destCtx = this.els.destCanvas.getContext('2d', { willReadFrequently: true });
-                
-                // Configuração inicial
-                this.els.srcCtx.imageSmoothingEnabled = false;
-                this.els.destCtx.imageSmoothingEnabled = false;
-                
-                this.setupEvents();
-                this.setMode('tileset');
-                this.initDest(512, 512); // Tamanho padrão Tileset
-            },
-
-            // --- CONFIGURAÇÃO ---
-            setMode(mode) {
-                let w=32, h=32;
-                if(mode === 'faceset') { w=96; h=96; }
-                if(mode === 'free') { w=1; h=1; }
-                
-                this.els.gridW.value = w;
-                this.els.gridH.value = h;
-                this.updateGrid();
-            },
-
-            updateGrid() {
-                this.state.gridW = parseInt(this.els.gridW.value) || 32;
-                this.state.gridH = parseInt(this.els.gridH.value) || 32;
-                this.redrawSource(); // Redesenha a grade na origem
-            },
-
-            initDest(w, h) {
-                this.els.destCanvas.width = w;
-                this.els.destCanvas.height = h;
-                this.els.destCtx.imageSmoothingEnabled = false;
-                this.saveHistory();
-                this.redrawDest();
-            },
-
-            // --- DESENHO ---
-            redrawSource() {
-                if(!this.els.srcImg) return;
-                const ctx = this.els.srcCtx;
-                const w = this.els.srcCanvas.width;
-                const h = this.els.srcCanvas.height;
-
-                // 1. Imagem Limpa
-                ctx.clearRect(0,0,w,h);
-                ctx.drawImage(this.els.srcImg, 0, 0);
-
-                // 2. Grade Base (Fina, Cinza)
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.lineWidth = 1;
-                for(let x=0; x<=w; x+=this.state.gridW) { ctx.moveTo(x,0); ctx.lineTo(x,h); }
-                for(let y=0; y<=h; y+=this.state.gridH) { ctx.moveTo(0,y); ctx.lineTo(w,y); }
-                ctx.stroke();
-
-                // 3. Retângulo de Seleção (Se estiver selecionando)
-                if (this.state.selRect.w > 0) {
-                    ctx.fillStyle = 'rgba(0, 122, 204, 0.3)';
-                    ctx.strokeStyle = '#00e5ff';
-                    ctx.lineWidth = 2;
-                    const r = this.state.selRect;
-                    ctx.fillRect(r.x, r.y, r.w, r.h);
-                    ctx.strokeRect(r.x, r.y, r.w, r.h);
-                }
-            },
-
-            redrawDest(ghostX, ghostY) {
-                const ctx = this.els.destCtx;
-                
-                // 1. Restaurar Histórico
-                if(this.state.history[this.state.historyIndex]) {
-                    ctx.putImageData(this.state.history[this.state.historyIndex], 0, 0);
-                } else {
-                    ctx.clearRect(0,0, this.els.destCanvas.width, this.els.destCanvas.height);
-                }
-
-                // 2. Grade (Opcional, só pra guiar)
-                // (Omitido para ficar mais limpo na visualização do editor)
-
-                // 3. Fantasma (Preview do que vai colar)
-                if(this.state.clipboard && ghostX !== undefined) {
-                    ctx.save();
-                    ctx.globalAlpha = 0.7;
-                    ctx.drawImage(this.state.clipboard, ghostX, ghostY);
-                    
-                    // Borda do Fantasma
-                    ctx.strokeStyle = '#00e5ff';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(ghostX, ghostY, this.state.selRect.w, this.state.selRect.h);
-                    ctx.restore();
-                }
-            },
-
-            // --- EVENTOS DE ORIGEM (SELEÇÃO INTELIGENTE) ---
-            setupEvents() {
-                const src = this.els.srcCanvas;
-                
-                // MOUSE DOWN: Começa seleção
-                src.onmousedown = (e) => {
-                    if(!this.els.srcImg) return;
-                    this.state.isSelecting = true;
-                    
-                    const pos = this.getGridPos(src, e);
-                    this.state.selStart = pos; // Guarda onde clicou
-                    
-                    // Inicializa rect com tamanho de 1 célula
-                    this.state.selRect = { x: pos.x, y: pos.y, w: this.state.gridW, h: this.state.gridH };
-                    this.redrawSource();
-                };
-
-                // MOUSE MOVE: Expande seleção
-                src.onmousemove = (e) => {
-                    if(!this.state.isSelecting) return;
-                    
-                    const current = this.getGridPos(src, e);
-                    const start = this.state.selStart;
-                    
-                    // Calcula retângulo baseado no arrastar
-                    // Math.min/max permite arrastar para trás (esquerda/cima)
-                    const x = Math.min(start.x, current.x);
-                    const y = Math.min(start.y, current.y);
-                    // A largura deve incluir a célula onde o mouse está
-                    const w = Math.abs(current.x - start.x) + this.state.gridW; 
-                    const h = Math.abs(current.y - start.y) + this.state.gridH;
-
-                    this.state.selRect = { x, y, w, h };
-                    this.redrawSource();
-                };
-
-                // MOUSE UP: Finaliza e Copia
-                window.addEventListener('mouseup', () => {
-                    if(this.state.isSelecting) {
-                        this.state.isSelecting = false;
-                        this.copySelection();
-                    }
-                });
-
-                // --- EVENTOS DE DESTINO ---
-                const dest = this.els.destCanvas;
-                
-                dest.onmousemove = (e) => {
-                    // O fantasma deve seguir o mouse, mas alinhado à grade
-                    const pos = this.getGridPos(dest, e);
-                    this.redrawDest(pos.x, pos.y);
-                    document.getElementById('coords').innerText = `X: ${pos.x}, Y: ${pos.y}`;
-                };
-                
-                dest.onmouseleave = () => this.redrawDest();
-
-                dest.onmousedown = (e) => {
-                    if(!this.state.clipboard) return;
-                    const pos = this.getGridPos(dest, e);
-                    
-                    if(e.button === 0) { // Colar
-                        // Limpa a área antes de colar (pra não sobrepor transparência sujando)
-                        // this.els.destCtx.clearRect(pos.x, pos.y, this.state.selRect.w, this.state.selRect.h);
-                        // NA VERDADE: Como estamos editando, queremos sobrepor (Painter's Algorithm). 
-                        // Se quiser apagar antes, descomente a linha acima.
-                        
-                        this.els.destCtx.drawImage(this.state.clipboard, pos.x, pos.y);
-                        this.saveHistory();
-                        this.redrawDest(pos.x, pos.y);
-                        this.status("Colado!");
-                    } else if(e.button === 2) { // Borracha
-                        this.els.destCtx.clearRect(pos.x, pos.y, this.state.selRect.w, this.state.selRect.h);
-                        this.saveHistory();
-                        this.redrawDest(pos.x, pos.y);
-                    }
-                };
-                dest.oncontextmenu = e => e.preventDefault();
-            },
-
-            // Auxiliar para pegar coordenada na grade
-            getGridPos(canvas, e) {
-                const rect = canvas.getBoundingClientRect();
-                const scale = this.state.zoom;
-                const rawX = (e.clientX - rect.left) / scale;
-                const rawY = (e.clientY - rect.top) / scale;
-                
-                // Arredonda para baixo pelo tamanho da grade
-                const x = Math.floor(rawX / this.state.gridW) * this.state.gridW;
-                const y = Math.floor(rawY / this.state.gridH) * this.state.gridH;
-                return { x, y };
-            },
-
-            copySelection() {
-                if(!this.els.srcImg) return;
-                const r = this.state.selRect;
-                
-                // Extrai da imagem original (limpa)
-                this.els.srcCtx.drawImage(this.els.srcImg, 0, 0); // Remove overlay visual
-                const data = this.els.srcCtx.getImageData(r.x, r.y, r.w, r.h);
-                this.redrawSource(); // Devolve overlay
-
-                createImageBitmap(data).then(bmp => {
-                    this.state.clipboard = bmp;
-                    this.status(`Copiada área de ${r.w}x${r.h} pixels.`);
-                });
-            },
-
-            // --- ARQUIVOS E HISTÓRICO ---
-            handleUpload(input, target) {
-                if(!input.files[0]) return;
-                const img = new Image();
-                img.onload = () => {
-                    if(target === 'src') {
-                        this.els.srcImg = img;
-                        this.els.srcCanvas.width = img.width;
-                        this.els.srcCanvas.height = img.height;
-                        this.els.srcCtx.imageSmoothingEnabled = false;
-                        this.redrawSource();
-                    } else {
-                        // Carregar para Editar (Destino)
-                        this.initDest(img.width, img.height); // Redimensiona destino para caber a imagem
-                        this.els.destCtx.drawImage(img, 0, 0);
-                        this.saveHistory();
-                        this.status("Tileset base carregado para edição.");
-                    }
-                };
-                img.src = URL.createObjectURL(input.files[0]);
-                input.value = ''; // Reseta input
-            },
-
-            saveHistory() {
-                const data = this.els.destCtx.getImageData(0, 0, this.els.destCanvas.width, this.els.destCanvas.height);
-                this.state.history = this.state.history.slice(0, this.state.historyIndex + 1);
-                this.state.history.push(data);
-                if (this.state.history.length > 20) this.state.history.shift();
-                else this.state.historyIndex++;
-            },
-
-            undo() {
-                if(this.state.historyIndex > 0) {
-                    this.state.historyIndex--;
-                    const data = this.state.history[this.state.historyIndex];
-                    this.els.destCtx.putImageData(data, 0, 0);
-                    this.redrawDest();
-                    this.status("Desfeito.");
-                }
-            },
-
-            download() {
-                const temp = document.createElement('canvas');
-                temp.width = this.els.destCanvas.width;
-                temp.height = this.els.destCanvas.height;
-                // Pega dados brutos do histórico (sem fantasma)
-                temp.getContext('2d').putImageData(this.state.history[this.state.historyIndex], 0, 0);
-                
-                const link = document.createElement('a');
-                link.download = `Edit_Tileset_${Date.now()}.png`;
-                link.href = temp.toDataURL();
-                link.click();
-            },
-
-            setZoom(val) {
-                this.state.zoom = val;
-                this.els.srcCanvas.style.transform = `scale(${val})`;
-                this.els.destCanvas.style.transform = `scale(${val})`;
-                const m = (val-1)*50;
-                this.els.srcWrapper.style.padding = `${m}px`;
-                this.els.destWrapper.style.padding = `${m}px`;
-            },
-
-            status(msg) { document.getElementById('statusText').innerText = msg; }
+        // Globais
+        let grid = { w: 32, h: 32 };
+        let state = {
+            zoom: 1,
+            selecting: false,
+            pStart: {x:0, y:0},
+            rect: {x:0, y:0, w:0, h:0},
+            clip: null, // bitmap copiado
+            history: [],
+            hIdx: -1
         };
 
-        App.init();
+        const cSrc = $('cSrc');
+        const cDest = $('cDest');
+        const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
+        const ctxD = cDest.getContext('2d', { willReadFrequently: true });
+        
+        // Imagens carregadas
+        let imgS = null;
+
+        // Init rapido
+        ctxS.imageSmoothingEnabled = false;
+        ctxD.imageSmoothingEnabled = false;
+        resizeDest(512, 512);
+
+        // --- Eventos da UI ---
+
+        $('selMode').onchange = function() {
+            let m = this.value;
+            let w=32, h=32;
+            if(m === 'faceset') { w=96; h=96; }
+            if(m === 'free') { w=1; h=1; }
+            $('inpW').value = w;
+            $('inpH').value = h;
+            updateGrid();
+        };
+
+        $('inpW').onchange = updateGrid;
+        $('inpH').onchange = updateGrid;
+        
+        $('rngZoom').oninput = function() {
+            state.zoom = this.value;
+            cSrc.style.transform = `scale(${state.zoom})`;
+            cDest.style.transform = `scale(${state.zoom})`;
+            // hack pra centralizar no scroll
+            let pad = (state.zoom - 1) * 100;
+            $('wrapSrc').style.padding = pad + 'px';
+            $('wrapDest').style.padding = pad + 'px';
+        };
+
+        function updateGrid() {
+            grid.w = parseInt($('inpW').value) || 32;
+            grid.h = parseInt($('inpH').value) || 32;
+            drawSrc();
+        }
+
+        // --- Core Logic ---
+
+        function drawSrc() {
+            if(!imgS) return;
+            ctxS.clearRect(0,0, cSrc.width, cSrc.height);
+            ctxS.drawImage(imgS, 0, 0);
+
+            // Grade simples
+            ctxS.beginPath();
+            ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
+            for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
+            for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
+            ctxS.stroke();
+
+            // Seleção
+            if(state.rect.w > 0) {
+                ctxS.strokeStyle = '#00e5ff';
+                ctxS.lineWidth = 2;
+                ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
+                ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
+                ctxS.strokeRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
+            }
+        }
+
+        function drawDest(gx, gy) {
+            // Limpa e redesenha do histórico atual
+            if(state.history[state.hIdx]) {
+                ctxD.putImageData(state.history[state.hIdx], 0, 0);
+            } else {
+                ctxD.clearRect(0,0, cDest.width, cDest.height);
+            }
+
+            // Ghost do clipboard
+            if(state.clip && gx !== undefined) {
+                ctxD.save();
+                ctxD.globalAlpha = 0.6;
+                ctxD.drawImage(state.clip, gx, gy);
+                ctxD.strokeStyle = '#00e5ff';
+                ctxD.strokeRect(gx, gy, state.rect.w, state.rect.h);
+                ctxD.restore();
+            }
+        }
+
+        // --- Mouse Origem (Seleção) ---
+
+        cSrc.onmousedown = e => {
+            if(!imgS) return;
+            state.selecting = true;
+            let p = getPos(cSrc, e);
+            state.pStart = p;
+            state.rect = { x: p.x, y: p.y, w: grid.w, h: grid.h };
+            drawSrc();
+        };
+
+        cSrc.onmousemove = e => {
+            if(!state.selecting) return;
+            let p = getPos(cSrc, e);
+            
+            // Logica de arrastar retangulo
+            let x = Math.min(state.pStart.x, p.x);
+            let y = Math.min(state.pStart.y, p.y);
+            let w = Math.abs(p.x - state.pStart.x) + grid.w;
+            let h = Math.abs(p.y - state.pStart.y) + grid.h;
+            
+            state.rect = {x, y, w, h};
+            drawSrc();
+        };
+
+        window.onmouseup = () => {
+            if(state.selecting) {
+                state.selecting = false;
+                // Copiar para memoria
+                ctxS.drawImage(imgS, 0, 0); // remove overlay pra copiar limpo
+                let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
+                drawSrc(); // volta overlay
+                
+                createImageBitmap(data).then(bmp => {
+                    state.clip = bmp;
+                    log(`Copiado: ${state.rect.w}x${state.rect.h}`);
+                });
+            }
+        };
+
+        // --- Mouse Destino (Colar) ---
+
+        cDest.onmousemove = e => {
+            let p = getPos(cDest, e);
+            $('pos').innerText = `${p.x}, ${p.y}`;
+            drawDest(p.x, p.y);
+        };
+        
+        cDest.onmouseleave = () => drawDest();
+
+        cDest.onmousedown = e => {
+            let p = getPos(cDest, e);
+            
+            if(e.button === 0 && state.clip) {
+                // Colar
+                // ctxD.clearRect(p.x, p.y, state.rect.w, state.rect.h); // descomentar se quiser apagar fundo
+                ctxD.drawImage(state.clip, p.x, p.y);
+                pushHistory();
+                drawDest(p.x, p.y);
+            } 
+            else if(e.button === 2) {
+                // Borracha
+                ctxD.clearRect(p.x, p.y, state.rect.w || grid.w, state.rect.h || grid.h);
+                pushHistory();
+                drawDest(p.x, p.y);
+            }
+        };
+
+        cDest.oncontextmenu = e => e.preventDefault();
+
+        // --- Helpers ---
+
+        function getPos(canvas, e) {
+            let r = canvas.getBoundingClientRect();
+            let rx = (e.clientX - r.left) / state.zoom;
+            let ry = (e.clientY - r.top) / state.zoom;
+            // Snap
+            return {
+                x: Math.floor(rx / grid.w) * grid.w,
+                y: Math.floor(ry / grid.h) * grid.h
+            };
+        }
+
+        function resizeDest(w, h) {
+            cDest.width = w;
+            cDest.height = h;
+            ctxD.imageSmoothingEnabled = false;
+            pushHistory();
+            drawDest();
+        }
+
+        // --- Undo / History ---
+        
+        function pushHistory() {
+            let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
+            // Corta histórico se voltamos no tempo
+            state.history = state.history.slice(0, state.hIdx + 1);
+            state.history.push(data);
+            if(state.history.length > 15) state.history.shift(); // max 15
+            else state.hIdx++;
+        }
+
+        function undo() {
+            if(state.hIdx > 0) {
+                state.hIdx--;
+                let data = state.history[state.hIdx];
+                ctxD.putImageData(data, 0, 0);
+                drawDest();
+                log("Desfeito.");
+            }
+        }
+
+        // --- Files ---
+
+        $('fSrc').onchange = function() { loadImg(this, true); };
+        $('fDest').onchange = function() { loadImg(this, false); };
+
+        function loadImg(input, isSrc) {
+            if(!input.files[0]) return;
+            let img = new Image();
+            img.onload = () => {
+                if(isSrc) {
+                    imgS = img;
+                    cSrc.width = img.width;
+                    cSrc.height = img.height;
+                    ctxS.imageSmoothingEnabled = false;
+                    drawSrc();
+                } else {
+                    resizeDest(img.width, img.height);
+                    ctxD.drawImage(img, 0, 0);
+                    pushHistory();
+                }
+            };
+            img.src = URL.createObjectURL(input.files[0]);
+            input.value = '';
+        }
+
+        function save() {
+            let link = document.createElement('a');
+            // Hack pra baixar o buffer atual do canvas
+            // Precisamos renderizar o histórico puro sem o ghost
+            let temp = document.createElement('canvas');
+            temp.width = cDest.width; temp.height = cDest.height;
+            temp.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
+            
+            link.download = 'tileset_edit.png';
+            link.href = temp.toDataURL();
+            link.click();
+        }
+        
+        function log(msg) { $('log').innerText = msg; }
+        
+        // Atalho Ctrl+Z
+        document.addEventListener('keydown', e => {
+            if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        });
+
     </script>
 </body>
 </html>
