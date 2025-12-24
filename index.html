@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Overlay Fix</title>
+    <title>RPG Maker Studio - Pixel Perfect FIX</title>
     <style>
         body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
@@ -26,12 +26,20 @@
         .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
         .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
         
-        /* O segredo da arquitetura Overlay */
         .viewport { flex: 1; overflow: auto; background: #111; display: grid; place-items: center; position: relative; }
-        #wrapDest { position: relative; } /* Container para o overlay */
-        #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } /* O Overlay fica por cima e não recebe cliques */
+        #wrapDest { position: relative; }
+        #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } 
         
-        canvas { image-rendering: pixelated; box-shadow: 0 0 20px #000; display: block; }
+        /* CSS CRÍTICO PARA PIXEL ART */
+        canvas { 
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            box-shadow: 0 0 20px #000; 
+            display: block; 
+        }
+        
         .bg-check {
             background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
             background-size: 20px 20px;
@@ -63,11 +71,11 @@
             </div>
         </div>
         <div style="margin-left: auto; display:flex; gap: 10px;">
-            <button class="btn-purple" onclick="$('fConv').click()">⚡ Importar MV/MZ</button>
+            <button class="btn-purple" onclick="$('fConv').click()">⚡ Importar MV/MZ (Sem Blur)</button>
             <div class="sep"></div>
             <button onclick="$('fSrc').click()">📂 Abrir Origem</button>
             <button onclick="$('fDest').click()">✏️ Editar Base</button>
-            <button class="btn-blue" onclick="save()">💾 Salvar Limpo</button>
+            <button class="btn-blue" onclick="save()">💾 Salvar</button>
             <input type="file" id="fSrc" class="hide" accept="image/*">
             <input type="file" id="fDest" class="hide" accept="image/*">
             <input type="file" id="fConv" class="hide" accept="image/*">
@@ -85,12 +93,12 @@
             <div class="header"><span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span></div>
             <div class="viewport bg-check" id="wrapDest">
                 <canvas id="cDest" style="cursor: crosshair;"></canvas>
-                <canvas id="cDestOverlay"></canvas> <!-- NOVO CANVAS OVERLAY -->
+                <canvas id="cDestOverlay"></canvas>
             </div>
         </div>
     </div>
     <div class="bar">
-        <span id="log">Overlay Architecture. Pronto para salvar sem marcas.</span>
+        <span id="log">Modo Pixel Perfect Ativado.</span>
         <span id="pos">0, 0</span>
     </div>
 
@@ -102,14 +110,21 @@
         const cSrc = $('cSrc'), cDest = $('cDest'), cOver = $('cDestOverlay');
         const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
         const ctxD = cDest.getContext('2d', { willReadFrequently: true });
-        const ctxO = cOver.getContext('2d'); // Contexto do Overlay
+        const ctxO = cOver.getContext('2d');
         let imgS = null;
 
-        ctxS.imageSmoothingEnabled = false;
-        ctxD.imageSmoothingEnabled = false;
-        ctxO.imageSmoothingEnabled = false;
+        // O SEGREDO DO PIXEL ART: DESATIVAR SUAVIZAÇÃO EM TUDO
+        function enforcePixelArt(ctx) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+        }
 
-        // --- Init & UI ---
+        enforcePixelArt(ctxS);
+        enforcePixelArt(ctxD);
+        enforcePixelArt(ctxO);
+
         function init() {
             $('selMode').onchange = function() {
                 let m = this.value, w=32, h=32;
@@ -120,8 +135,6 @@
                 updateGrid();
             };
             $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
-
-            // Inicia com Iconset por causa da imagem do user
             resizeDest(24*16, 24*20); 
         }
         
@@ -130,15 +143,19 @@
             drawSrc();
         }
 
-        // --- Desenho ---
         function drawSrc() {
             if(!imgS) return;
+            enforcePixelArt(ctxS); // Garante que não ativa sozinho
             ctxS.clearRect(0,0, cSrc.width, cSrc.height);
             ctxS.drawImage(imgS, 0, 0);
+            
+            // Grade
             ctxS.beginPath(); ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
             for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
             for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
             ctxS.stroke();
+            
+            // Seleção
             if(state.rect.w > 0) {
                 ctxS.strokeStyle = '#00e5ff'; ctxS.lineWidth = 2; ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
                 ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
@@ -146,11 +163,11 @@
             }
         }
 
-        // AGORA DESENHA APENAS NO OVERLAY TRANSPARENTE
         function drawOverlay(gx, gy) {
             ctxO.clearRect(0,0, cOver.width, cOver.height);
             if(state.clip && gx !== undefined) {
                 ctxO.save();
+                enforcePixelArt(ctxO);
                 ctxO.globalAlpha = 0.7;
                 ctxO.drawImage(state.clip, gx, gy);
                 ctxO.strokeStyle = '#00e5ff';
@@ -159,7 +176,6 @@
             }
         }
 
-        // --- Mouse Origem ---
         cSrc.onmousedown = e => {
             if(!imgS) return;
             state.selecting = true;
@@ -168,6 +184,7 @@
             state.rect = { x: p.x, y: p.y, w: grid.w, h: grid.h };
             drawSrc();
         };
+        
         cSrc.onmousemove = e => {
             if(!state.selecting) return;
             let p = getPos(cSrc, e);
@@ -176,29 +193,29 @@
             state.rect = {x, y, w, h};
             drawSrc();
         };
+        
         window.onmouseup = () => {
             if(state.selecting) {
                 state.selecting = false;
-                ctxS.drawImage(imgS, 0, 0);
+                ctxS.drawImage(imgS, 0, 0); // Copia imagem limpa
                 let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
                 drawSrc();
                 createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado: ${state.rect.w}x${state.rect.h}`); });
             }
         };
 
-        // --- Mouse Destino ---
         cDest.onmousemove = e => {
             let p = getPos(cDest, e);
             $('pos').innerText = `${p.x}, ${p.y}`;
-            drawOverlay(p.x, p.y); // Apenas atualiza o overlay
+            drawOverlay(p.x, p.y);
         };
+        
         cDest.onmouseleave = () => ctxO.clearRect(0,0,cOver.width, cOver.height);
 
         cDest.onmousedown = e => {
             let p = getPos(cDest, e);
-            
-            // Ações afetam apenas o canvas de DADOS (ctxD)
             if(e.button === 0 && state.clip) {
+                enforcePixelArt(ctxD); // Garante pixel art
                 ctxD.drawImage(state.clip, p.x, p.y);
                 pushHistory();
             } else if(e.button === 2) {
@@ -206,26 +223,41 @@
                 pushHistory();
             }
         };
+        
         cDest.oncontextmenu = e => e.preventDefault();
 
-        // --- Helpers ---
         function getPos(c, e) {
             let r = c.getBoundingClientRect();
-            let rx = e.clientX - r.left, ry = e.clientY - r.top;
-            return { x: Math.floor(rx/grid.w)*grid.w, y: Math.floor(ry/grid.h)*grid.h };
+            // Correção para o Zoom não estragar a posição
+            let rx = (e.clientX - r.left), ry = (e.clientY - r.top);
+            // Como usamos transform: scale, o offset já vem escalado, não precisamos dividir pelo zoom aqui se o canvas tiver tamanho fixo,
+            // MAS como o wrapper tem scroll, precisamos ajustar. O jeito mais fácil é:
+            // O elemento clicado é o canvas. O evento dá posição relativa ao viewport.
+            // O getBoundingClientRect já considera o scale transform.
+            // Precisamos saber a proporção entre o tamanho visual e o tamanho real do canvas.
+            let scaleX = c.width / r.width;
+            let scaleY = c.height / r.height;
+            
+            let finalX = rx * scaleX;
+            let finalY = ry * scaleY;
+
+            return { x: Math.floor(finalX/grid.w)*grid.w, y: Math.floor(finalY/grid.h)*grid.h };
         }
+
         function resizeDest(w, h) {
             cDest.width = cOver.width = w;
             cDest.height = cOver.height = h;
-            ctxD.imageSmoothingEnabled = false;
+            enforcePixelArt(ctxD);
             pushHistory();
         }
+        
         function pushHistory() {
             let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
             state.history = state.history.slice(0, state.hIdx + 1);
             state.history.push(data);
             if(state.history.length > 20) state.history.shift(); else state.hIdx++;
         }
+        
         function undo() {
             if(state.hIdx > 0) {
                 state.hIdx--;
@@ -233,11 +265,13 @@
                 log("Desfeito.");
             }
         }
+        
         function log(msg) { $('log').innerText = msg; }
 
-        // --- Arquivos ---
         $('fSrc').onchange = function() { loadImg(this, true); };
         $('fDest').onchange = function() { loadImg(this, false); };
+        
+        // --- CONVERSOR CORRIGIDO (SEM BLUR) ---
         $('fConv').onchange = function() {
             if(!this.files[0]) return;
             let img = new Image();
@@ -245,28 +279,32 @@
                 let tw = Math.floor(img.width * (2/3)), th = Math.floor(img.height * (2/3));
                 let tmp = document.createElement('canvas'); tmp.width = tw; tmp.height = th;
                 let tCtx = tmp.getContext('2d');
-                tCtx.imageSmoothingEnabled = true; tCtx.imageSmoothingQuality = 'high';
+                
+                // AQUI ESTAVA O ERRO! AGORA ESTÁ 'FALSE'
+                enforcePixelArt(tCtx);
+                
                 tCtx.drawImage(img, 0, 0, tw, th);
                 let cImg = new Image();
-                cImg.onload = () => { imgS = cImg; cSrc.width = tw; cSrc.height = th; ctxS.imageSmoothingEnabled = false; drawSrc(); log("Convertido e Carregado."); };
+                cImg.onload = () => { imgS = cImg; cSrc.width = tw; cSrc.height = th; enforcePixelArt(ctxS); drawSrc(); log("Importado (Nítido)."); };
                 cImg.src = tmp.toDataURL();
             };
             img.src = URL.createObjectURL(this.files[0]); this.value = '';
         };
+
         function loadImg(inp, isSrc) {
             if(!inp.files[0]) return;
             let img = new Image();
             img.onload = () => {
-                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; ctxS.imageSmoothingEnabled = false; drawSrc(); }
-                else { resizeDest(img.width, img.height); ctxD.drawImage(img, 0, 0); pushHistory(); }
+                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; enforcePixelArt(ctxS); drawSrc(); }
+                else { resizeDest(img.width, img.height); enforcePixelArt(ctxD); ctxD.drawImage(img, 0, 0); pushHistory(); }
             };
             img.src = URL.createObjectURL(inp.files[0]); inp.value = '';
         }
+
         function save() {
             let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
-            // Salva o último estado LIMPO do histórico
             t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
-            let a = document.createElement('a'); a.download = 'recurso_limpo.png'; a.href = t.toDataURL(); a.click();
+            let a = document.createElement('a'); a.download = 'pixel_perfect_recurso.png'; a.href = t.toDataURL(); a.click();
         }
 
         init();
