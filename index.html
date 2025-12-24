@@ -2,35 +2,50 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Magic Wand</title>
+    <title>RPG Maker Studio - ULTIMATE INTEGRAL</title>
     <style>
-        body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+        body { background: #181818; color: #ccc; font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
-        .tools { background: #202020; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap;}
-        .sep { width: 1px; height: 30px; background: #333; margin: 0 5px; }
-        label { font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; display: block; }
-        select, input { background: #333; border: 1px solid #444; color: white; padding: 4px; border-radius: 3px; }
-        input[type="number"] { width: 40px; text-align: center; }
+        /* --- TOOLBAR --- */
+        .tools { background: #202020; padding: 8px; display: flex; gap: 8px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap; }
+        .sep { width: 1px; height: 30px; background: #444; margin: 0 4px; }
         
-        button { background: #333; color: #ddd; border: 1px solid #444; padding: 5px 10px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 5px; font-size: 12px;}
-        button:hover { background: #444; }
+        .group { display: flex; flex-direction: column; gap: 2px; }
+        label { font-size: 9px; font-weight: bold; color: #888; text-transform: uppercase; }
         
-        .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
-        .btn-magic { background: #e91e63; border-color: #c2185b; color: white; } /* Botão Rosa */
-        .btn-magic:hover { background: #c2185b; }
-        .btn-active { box-shadow: 0 0 10px #e91e63 inset; border: 2px solid white; }
+        select, input { background: #333; border: 1px solid #555; color: white; padding: 3px; border-radius: 3px; font-size: 11px; }
+        input[type="number"] { width: 35px; text-align: center; }
+        input[type="range"] { width: 60px; }
 
+        button { background: #333; color: #ddd; border: 1px solid #555; padding: 4px 10px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; height: 26px; }
+        button:hover { background: #444; border-color: #777; }
+        button:active { transform: translateY(1px); }
+
+        .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
+        .btn-blue:hover { background: #005a9e; }
+        
+        .btn-purple { background: #6200ea; border-color: #4a00b0; color: white; }
+        .btn-purple:hover { background: #4a00b0; }
+        
+        .btn-magic { background: #e91e63; border-color: #c2185b; color: white; }
+        .btn-magic.active { background: #ffeb3b; color: #000; border-color: #fff; box-shadow: 0 0 8px #ffeb3b; }
+
+        /* --- LAYOUT --- */
         .main { flex: 1; display: flex; overflow: hidden; }
-        .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
-        .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; position: relative; }
+        
+        .header { background: #252526; padding: 4px 10px; font-size: 10px; font-weight: bold; color: #aaa; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
         
         .viewport { flex: 1; overflow: auto; background: #111; display: grid; place-items: center; position: relative; }
-        #wrapDest { position: relative; }
-        #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } 
         
+        /* --- CANVAS --- */
+        #wrapDest { position: relative; }
+        #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } /* O segredo do overlay */
+
         canvas { 
-            image-rendering: pixelated;
-            box-shadow: 0 0 20px #000; 
+            image-rendering: pixelated; /* Chrome/Opera */
+            image-rendering: crisp-edges; /* Firefox */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); 
             display: block; 
         }
         
@@ -38,6 +53,7 @@
             background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
             background-size: 20px 20px;
         }
+
         .bar { background: #007acc; color: white; padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; font-weight: bold; }
         .hide { display: none; }
     </style>
@@ -45,7 +61,8 @@
 <body>
 
     <div class="tools">
-        <div>
+        <!-- GRUPO 1: MODO -->
+        <div class="group">
             <label>Modo</label>
             <select id="selMode">
                 <option value="iconset">Iconset (24px)</option>
@@ -55,171 +72,253 @@
                 <option value="free">Livre</option>
             </select>
         </div>
+
         <div class="sep"></div>
-        <div>
-            <label>Grid</label>
+
+        <!-- GRUPO 2: GRID & OFFSET (Voltou!) -->
+        <div class="group">
+            <label>Grid (L / A)</label>
             <div style="display:flex; gap:2px">
-                <input type="number" id="inpW" value="24">
-                <input type="number" id="inpH" value="24">
+                <input type="number" id="inpW" value="24" title="Largura">
+                <input type="number" id="inpH" value="24" title="Altura">
             </div>
         </div>
-        
-        <!-- BOTÃO MÁGICO NOVO -->
-        <div class="sep"></div>
-        <button id="btnMagic" class="btn-magic" onclick="toggleMagic()">🪄 Remover Fundo (Cor)</button>
-        
-        <div style="margin-left: auto; display:flex; gap: 10px;">
-            <button onclick="$('fSrc').click()">📂 Origem</button>
-            <button onclick="$('fDest').click()">✏️ Editar</button>
-            <button class="btn-blue" onclick="save()">💾 Salvar</button>
-            <input type="file" id="fSrc" class="hide" accept="image/*">
-            <input type="file" id="fDest" class="hide" accept="image/*">
+        <div class="group">
+            <label>Deslocar (X / Y)</label>
+            <div style="display:flex; gap:2px">
+                <input type="number" id="offX" value="0" title="Offset X">
+                <input type="number" id="offY" value="0" title="Offset Y">
+            </div>
         </div>
+
+        <div class="sep"></div>
+
+        <!-- GRUPO 3: TOOLS -->
+        <div class="group">
+            <label>Ferramentas</label>
+            <div style="display:flex; gap:5px">
+                <button id="btnMagic" class="btn-magic" onclick="toggleMagic()">🪄 Remover Cor</button>
+                <button onclick="undo()">↩ Desfazer</button>
+            </div>
+        </div>
+
+        <div class="group">
+            <label>Zoom</label>
+            <input type="range" id="rngZoom" min="1" max="5" step="0.5" value="1">
+        </div>
+
+        <!-- GRUPO 4: ARQUIVOS -->
+        <div style="margin-left: auto; display:flex; gap: 8px; align-items: center;">
+            <button class="btn-purple" onclick="$('fConv').click()">⚡ Importar MV (48px)</button>
+            <div class="sep"></div>
+            <button onclick="$('fSrc').click()">📂 Origem</button>
+            <button onclick="$('fDest').click()">✏️ Base</button>
+            <button class="btn-blue" onclick="save()">💾 Salvar</button>
+        </div>
+
+        <!-- HIDDEN INPUTS -->
+        <input type="file" id="fSrc" class="hide" accept="image/*">
+        <input type="file" id="fDest" class="hide" accept="image/*">
+        <input type="file" id="fConv" class="hide" accept="image/*">
     </div>
 
     <div class="main">
+        <!-- ESQUERDA: ORIGEM -->
         <div class="panel">
-            <div class="header"><span>ORIGEM</span> <span id="srcMsg" style="color:#007acc">Segure & Arraste</span></div>
-            <div class="viewport bg-check">
+            <div class="header">
+                <span>ORIGEM</span> <span id="srcMsg" style="color:#007acc">Segure & Arraste</span>
+            </div>
+            <div class="viewport bg-check" id="wrapSrc">
                 <canvas id="cSrc" style="cursor: crosshair;"></canvas>
             </div>
         </div>
+
+        <!-- DIREITA: DESTINO -->
         <div class="panel">
-            <div class="header"><span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span></div>
+            <div class="header">
+                <span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span>
+            </div>
             <div class="viewport bg-check" id="wrapDest">
-                <canvas id="cDest"></canvas>
-                <canvas id="cDestOverlay"></canvas>
+                <canvas id="cDest"></canvas> <!-- DADOS (Pixel) -->
+                <canvas id="cDestOverlay"></canvas> <!-- VISUAL (Grid/Ghost) -->
             </div>
         </div>
     </div>
+
     <div class="bar">
-        <span id="log">Sistema Pronto.</span>
+        <span id="log">Sistema Integral Carregado.</span>
         <span id="pos">0, 0</span>
     </div>
 
     <script>
         const $ = id => document.getElementById(id);
-        let grid = { w: 24, h: 24 };
+        
+        // --- ESTADO GLOBAL ---
+        let grid = { w: 24, h: 24, offX: 0, offY: 0 };
         let state = { 
-            zoom: 1, selecting: false, magicMode: false,
-            pStart: {x:0, y:0}, rect: {x:0, y:0, w:0, h:0}, 
-            clip: null, history: [], hIdx: -1 
+            zoom: 1, 
+            selecting: false, 
+            magicMode: false,
+            pStart: {x:0, y:0}, 
+            rect: {x:0, y:0, w:0, h:0}, 
+            clip: null, // Bitmap copiado
+            history: [], 
+            hIdx: -1 
         };
 
+        // --- CONTEXTOS ---
         const cSrc = $('cSrc'), cDest = $('cDest'), cOver = $('cDestOverlay');
         const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
         const ctxD = cDest.getContext('2d', { willReadFrequently: true });
-        const ctxO = cOver.getContext('2d');
-        let imgS = null;
+        const ctxO = cOver.getContext('2d'); // Overlay só visual
+        let imgS = null; // Imagem origem em memória
 
-        // Force Pixel Art
-        function enforce(ctx) { ctx.imageSmoothingEnabled = false; }
+        // --- FORÇAR PIXEL PERFECT ---
+        function enforce(ctx) { 
+            ctx.imageSmoothingEnabled = false; 
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+        }
         enforce(ctxS); enforce(ctxD); enforce(ctxO);
 
+        // --- INICIALIZAÇÃO ---
         function init() {
             $('selMode').onchange = function() {
                 let m = this.value, w=32, h=32;
                 if(m === 'iconset') { w=24; h=24; }
                 if(m === 'faceset') { w=96; h=96; }
+                if(m === 'free') { w=1; h=1; }
                 $('inpW').value = w; $('inpH').value = h;
                 updateGrid();
             };
-            $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
-            resizeDest(24*16, 24*20);
+
+            // Listeners de Configuração
+            $('inpW').onchange = updateGrid;
+            $('inpH').onchange = updateGrid;
+            $('offX').onchange = updateGrid;
+            $('offY').onchange = updateGrid;
+
+            $('rngZoom').oninput = function() {
+                state.zoom = this.value;
+                cSrc.style.transform = `scale(${state.zoom})`;
+                cDest.style.transform = `scale(${state.zoom})`;
+                cOver.style.transform = `scale(${state.zoom})`; // Zoom no Overlay também
+                
+                // Ajuste de margem para o scroll funcionar
+                let pad = (state.zoom - 1) * 100;
+                if(pad < 0) pad = 0;
+                $('wrapSrc').style.padding = pad + 'px';
+                $('wrapDest').style.padding = pad + 'px';
+            };
+
+            // Inicia tamanho padrão
+            resizeDest(384, 480); 
         }
         
         function updateGrid() {
-            grid.w = parseInt($('inpW').value) || 24; grid.h = parseInt($('inpH').value) || 24;
-            drawSrc();
+            grid.w = parseInt($('inpW').value) || 24;
+            grid.h = parseInt($('inpH').value) || 24;
+            grid.offX = parseInt($('offX').value) || 0;
+            grid.offY = parseInt($('offY').value) || 0;
+            drawSrc(); // Redesenha grades da origem
         }
 
-        // --- VARINHA MÁGICA (NOVA FUNÇÃO) ---
-        function toggleMagic() {
-            state.magicMode = !state.magicMode;
-            const btn = $('btnMagic');
-            const msg = $('srcMsg');
-            
-            if(state.magicMode) {
-                btn.classList.add('btn-active');
-                btn.innerText = "Clique na cor para apagar";
-                cSrc.style.cursor = "pointer";
-                msg.innerText = "MODO BORRACHA: CLIQUE NO AZUL";
-                msg.style.color = "#e91e63";
-            } else {
-                btn.classList.remove('btn-active');
-                btn.innerText = "🪄 Remover Fundo (Cor)";
-                cSrc.style.cursor = "crosshair";
-                msg.innerText = "Segure & Arraste";
-                msg.style.color = "#007acc";
-            }
-        }
-
-        function removeColor(targetR, targetG, targetB) {
-            const w = cSrc.width, h = cSrc.height;
-            const imgData = ctxS.getImageData(0, 0, w, h);
-            const d = imgData.data;
-            let count = 0;
-
-            for (let i = 0; i < d.length; i += 4) {
-                // Tolerância pequena (para pegar variações leves de azul)
-                if (Math.abs(d[i] - targetR) < 10 &&
-                    Math.abs(d[i+1] - targetG) < 10 &&
-                    Math.abs(d[i+2] - targetB) < 10) {
-                    d[i+3] = 0; // Alpha 0 = Transparente
-                    count++;
-                }
-            }
-            
-            ctxS.putImageData(imgData, 0, 0);
-            
-            // Atualiza a imagem "Fonte" em memória para o seletor pegar a versão transparente
-            createImageBitmap(imgData).then(bmp => {
-                imgS = bmp; // Substitui a imagem original pela transparente
-                log(`Fundo removido! ${count} pixels apagados.`);
-                toggleMagic(); // Desliga o modo mágico
-            });
-        }
-
-        // --- DRAWING ---
+        // --- LÓGICA DE DESENHO ORIGEM ---
         function drawSrc() {
             if(!imgS) return;
+            // 1. Limpa e desenha imagem
             ctxS.clearRect(0,0, cSrc.width, cSrc.height);
             ctxS.drawImage(imgS, 0, 0);
             
-            ctxS.beginPath(); ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
-            for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
-            for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
+            // 2. Desenha Grade (Com Offset!)
+            ctxS.beginPath(); 
+            ctxS.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctxS.lineWidth = 1;
+
+            // Linhas Verticais
+            for(let x = grid.offX; x <= cSrc.width; x += grid.w) { 
+                ctxS.moveTo(x, 0); ctxS.lineTo(x, cSrc.height); 
+            }
+            // Linhas Horizontais
+            for(let y = grid.offY; y <= cSrc.height; y += grid.h) { 
+                ctxS.moveTo(0, y); ctxS.lineTo(cSrc.width, y); 
+            }
             ctxS.stroke();
             
+            // 3. Desenha Retângulo de Seleção
             if(state.rect.w > 0 && !state.magicMode) {
-                ctxS.strokeStyle = '#00e5ff'; ctxS.lineWidth = 2; ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
+                ctxS.strokeStyle = '#00e5ff'; 
+                ctxS.lineWidth = 2; 
+                ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
                 ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
                 ctxS.strokeRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
             }
         }
 
+        // --- LÓGICA OVERLAY (DESTINO) ---
         function drawOverlay(gx, gy) {
-            ctxO.clearRect(0,0, cOver.width, cOver.height);
+            ctxO.clearRect(0,0, cOver.width, cOver.height); // Limpa Overlay
+            
             if(state.clip && gx !== undefined) {
-                ctxO.save(); enforce(ctxO);
-                ctxO.globalAlpha = 0.7;
+                ctxO.save(); 
+                enforce(ctxO); // Garante pixel art no fantasma
+                ctxO.globalAlpha = 0.6;
                 ctxO.drawImage(state.clip, gx, gy);
+                
+                // Borda do fantasma
                 ctxO.strokeStyle = '#00e5ff';
+                ctxO.lineWidth = 1;
                 ctxO.strokeRect(gx, gy, state.rect.w, state.rect.h);
                 ctxO.restore();
             }
         }
 
-        // --- MOUSE SRC ---
+        // --- FERRAMENTA VARINHA MÁGICA ---
+        function toggleMagic() {
+            state.magicMode = !state.magicMode;
+            const btn = $('btnMagic');
+            if(state.magicMode) {
+                btn.classList.add('active');
+                $('srcMsg').innerText = "CLIQUE NA COR PARA APAGAR";
+                cSrc.style.cursor = "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" style=\"fill:red\"><circle cx=\"10\" cy=\"10\" r=\"5\"/></svg>') 10 10, auto"; 
+            } else {
+                btn.classList.remove('active');
+                $('srcMsg').innerText = "Segure & Arraste";
+                cSrc.style.cursor = "crosshair";
+            }
+            drawSrc();
+        }
+
+        function applyMagic(r, g, b) {
+            const w = cSrc.width, h = cSrc.height;
+            const imgData = ctxS.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            
+            for (let i = 0; i < d.length; i += 4) {
+                // Remove se a cor for igual (tolerância baixa)
+                if (Math.abs(d[i] - r) < 5 && Math.abs(d[i+1] - g) < 5 && Math.abs(d[i+2] - b) < 5) {
+                    d[i+3] = 0; // Transparente
+                }
+            }
+            ctxS.putImageData(imgData, 0, 0);
+            
+            // Atualiza a imagem fonte na memória
+            createImageBitmap(imgData).then(bmp => {
+                imgS = bmp; 
+                toggleMagic(); // Sai do modo mágico
+                log("Cor removida.");
+            });
+        }
+
+        // --- INTERAÇÃO MOUSE: ORIGEM ---
         cSrc.onmousedown = e => {
             if(!imgS) return;
-            let p = getPos(cSrc, e);
+            let p = getPos(cSrc, e, true); // True = usa offset
 
-            // SE TIVER NO MODO MÁGICO, REMOVE COR
             if(state.magicMode) {
-                // Pega a cor exata do pixel clicado
-                const pixel = ctxS.getImageData(p.realX, p.realY, 1, 1).data;
-                removeColor(pixel[0], pixel[1], pixel[2]);
+                // Pega cor do pixel real (ignorando a grade visual)
+                const pix = ctxS.getImageData(p.realX, p.realY, 1, 1).data;
+                applyMagic(pix[0], pix[1], pix[2]);
                 return;
             }
 
@@ -231,9 +330,14 @@
 
         cSrc.onmousemove = e => {
             if(state.magicMode || !state.selecting) return;
-            let p = getPos(cSrc, e);
-            let x = Math.min(state.pStart.x, p.x), y = Math.min(state.pStart.y, p.y);
-            let w = Math.abs(p.x - state.pStart.x) + grid.w, h = Math.abs(p.y - state.pStart.y) + grid.h;
+            let p = getPos(cSrc, e, true);
+            
+            // Lógica de seleção retangular
+            let x = Math.min(state.pStart.x, p.x);
+            let y = Math.min(state.pStart.y, p.y);
+            let w = Math.abs(p.x - state.pStart.x) + grid.w;
+            let h = Math.abs(p.y - state.pStart.y) + grid.h;
+            
             state.rect = {x, y, w, h};
             drawSrc();
         };
@@ -241,83 +345,167 @@
         window.onmouseup = () => {
             if(state.selecting) {
                 state.selecting = false;
-                // Truque: Desenhamos a imagem (que já pode estar transparente) e cortamos
+                // Copia da imagem limpa (sem grade desenhada)
                 ctxS.clearRect(0,0,cSrc.width,cSrc.height);
-                ctxS.drawImage(imgS, 0, 0); 
+                ctxS.drawImage(imgS, 0, 0);
                 let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
-                drawSrc(); // Redesenha grades
-                createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado!`); });
+                drawSrc(); // Restaura visual
+                
+                createImageBitmap(data).then(bmp => { 
+                    state.clip = bmp; 
+                    log(`Copiado: ${state.rect.w}x${state.rect.h}`); 
+                });
             }
         };
 
-        // --- MOUSE DEST ---
+        // --- INTERAÇÃO MOUSE: DESTINO ---
         cDest.onmousemove = e => {
-            let p = getPos(cDest, e);
+            let p = getPos(cDest, e, false); // False = sem offset (destino é grade 0,0)
             $('pos').innerText = `${p.x}, ${p.y}`;
             drawOverlay(p.x, p.y);
         };
+        
         cDest.onmouseleave = () => ctxO.clearRect(0,0,cOver.width, cOver.height);
+
         cDest.onmousedown = e => {
-            let p = getPos(cDest, e);
+            let p = getPos(cDest, e, false);
+            
             if(e.button === 0 && state.clip) {
+                // COLAR
                 enforce(ctxD);
+                // Painters Algorithm: Desenha por cima, mantendo transparência
                 ctxD.drawImage(state.clip, p.x, p.y);
                 pushHistory();
             } else if(e.button === 2) {
+                // BORRACHA
                 ctxD.clearRect(p.x, p.y, state.rect.w || grid.w, state.rect.h || grid.h);
                 pushHistory();
             }
         };
         cDest.oncontextmenu = e => e.preventDefault();
 
-        // --- UTIL ---
-        function getPos(c, e) {
+        // --- CALCULADORA DE POSIÇÃO (ROBUSTA) ---
+        function getPos(c, e, useOffset) {
             let r = c.getBoundingClientRect();
-            // Precisamos da posição real (sem grid) para a varinha mágica
-            let realX = e.clientX - r.left; 
-            let realY = e.clientY - r.top;
+            // Posição do mouse relativa ao elemento visual
+            let clientX = e.clientX - r.left;
+            let clientY = e.clientY - r.top;
             
-            // Correção de escala caso o canvas esteja redimensionado via CSS
-            realX = realX * (c.width / r.width);
-            realY = realY * (c.height / r.height);
+            // Corrige a escala se o CSS estiver redimensionando o canvas
+            let scaleX = c.width / r.width;
+            let scaleY = c.height / r.height;
+            
+            let realX = clientX * scaleX;
+            let realY = clientY * scaleY;
+            
+            // Aplica Snap to Grid
+            // Se usar offset, subtrai o offset antes de calcular a grade, depois soma de volta
+            let offX = useOffset ? grid.offX : 0;
+            let offY = useOffset ? grid.offY : 0;
+            
+            let gridX = Math.floor((realX - offX) / grid.w) * grid.w + offX;
+            let gridY = Math.floor((realY - offY) / grid.h) * grid.h + offY;
 
-            return { 
-                realX: Math.floor(realX),
-                realY: Math.floor(realY),
-                x: Math.floor(realX/grid.w)*grid.w, 
-                y: Math.floor(realY/grid.h)*grid.h 
+            return { x: gridX, y: gridY, realX: realX, realY: realY };
+        }
+
+        // --- GERENCIAMENTO DE ARQUIVOS ---
+        
+        // 1. IMPORTAR MV (48->32) PIXEL PERFECT
+        $('fConv').onchange = function() {
+            if(!this.files[0]) return;
+            let img = new Image();
+            img.onload = () => {
+                // Matemática: 48 * (2/3) = 32.
+                let tw = Math.floor(img.width * (2/3));
+                let th = Math.floor(img.height * (2/3));
+                
+                let tmp = document.createElement('canvas'); 
+                tmp.width = tw; tmp.height = th;
+                let tCtx = tmp.getContext('2d');
+                
+                // DESLIGAR SUAVIZAÇÃO NO CONVERSOR
+                tCtx.imageSmoothingEnabled = false; 
+                tCtx.drawImage(img, 0, 0, tw, th);
+                
+                let cImg = new Image();
+                cImg.onload = () => { 
+                    imgS = cImg; 
+                    cSrc.width = tw; cSrc.height = th; 
+                    enforce(ctxS); 
+                    drawSrc(); 
+                    log("Convertido (Pixel Perfect)."); 
+                };
+                cImg.src = tmp.toDataURL();
             };
+            img.src = URL.createObjectURL(this.files[0]); this.value = '';
+        };
+
+        // 2. CARREGAR NORMAIS
+        $('fSrc').onchange = function() { loadImg(this, true); };
+        $('fDest').onchange = function() { loadImg(this, false); };
+
+        function loadImg(inp, isSrc) {
+            if(!inp.files[0]) return;
+            let img = new Image();
+            img.onload = () => {
+                if(isSrc) { 
+                    imgS = img; 
+                    cSrc.width = img.width; cSrc.height = img.height; 
+                    enforce(ctxS); 
+                    drawSrc(); 
+                } else { 
+                    resizeDest(img.width, img.height); 
+                    enforce(ctxD); 
+                    ctxD.drawImage(img, 0, 0); 
+                    pushHistory(); 
+                }
+            };
+            img.src = URL.createObjectURL(inp.files[0]); inp.value = '';
         }
 
-        function resizeDest(w, h) {
-            cDest.width = cOver.width = w; cDest.height = cOver.height = h;
-            enforce(ctxD); pushHistory();
+        // 3. SALVAR (LIMPO)
+        function save() {
+            let t = document.createElement('canvas'); 
+            t.width = cDest.width; t.height = cDest.height;
+            // Pega dados do histórico (sem overlay)
+            t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
+            
+            let link = document.createElement('a'); 
+            link.download = 'RPG_Asset_Final.png'; 
+            link.href = t.toDataURL(); 
+            link.click();
         }
+
+        // --- SISTEMA ---
+        function resizeDest(w, h) {
+            cDest.width = cOver.width = w; 
+            cDest.height = cOver.height = h;
+            enforce(ctxD); 
+            pushHistory();
+        }
+        
         function pushHistory() {
             let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
             state.history = state.history.slice(0, state.hIdx + 1);
             state.history.push(data);
             if(state.history.length > 20) state.history.shift(); else state.hIdx++;
         }
+        
+        function undo() {
+            if(state.hIdx > 0) {
+                state.hIdx--;
+                ctxD.putImageData(state.history[state.hIdx], 0, 0);
+                log("Desfeito.");
+            }
+        }
+        
         function log(msg) { $('log').innerText = msg; }
-        function save() {
-            let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
-            t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
-            let a = document.createElement('a'); a.download = 'recurso_limpo.png'; a.href = t.toDataURL(); a.click();
-        }
-
-        // --- FILES ---
-        $('fSrc').onchange = function() { loadImg(this, true); };
-        $('fDest').onchange = function() { loadImg(this, false); };
-        function loadImg(inp, isSrc) {
-            if(!inp.files[0]) return;
-            let img = new Image();
-            img.onload = () => {
-                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; enforce(ctxS); drawSrc(); }
-                else { resizeDest(img.width, img.height); enforce(ctxD); ctxD.drawImage(img, 0, 0); pushHistory(); }
-            };
-            img.src = URL.createObjectURL(inp.files[0]); inp.value = '';
-        }
+        
+        // Atalho Teclado
+        document.addEventListener('keydown', e => { 
+            if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); } 
+        });
 
         init();
     </script>
