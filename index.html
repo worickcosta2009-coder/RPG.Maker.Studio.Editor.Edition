@@ -2,12 +2,12 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Dev Build</title>
+    <title>RPG Maker Studio - Clean Build</title>
     <style>
         body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
         /* Toolbar */
-        .tools { background: #202020; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; }
+        .tools { background: #202020; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap;}
         .sep { width: 1px; height: 30px; background: #333; margin: 0 5px; }
         
         label { font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; display: block; }
@@ -15,35 +15,27 @@
         select, input { background: #333; border: 1px solid #444; color: white; padding: 4px; border-radius: 3px; }
         input[type="number"] { width: 40px; text-align: center; }
         
-        button { background: #333; color: #ddd; border: 1px solid #444; padding: 5px 10px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 5px;}
+        button { background: #333; color: #ddd; border: 1px solid #444; padding: 5px 10px; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 5px; font-size: 12px;}
         button:hover { background: #444; }
-        button:active { transform: translateY(1px); }
+        
         .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
         .btn-blue:hover { background: #005a9e; }
-        
+        .btn-purple { background: #6a00ff; border-color: #5100c4; color: white; }
+        .btn-purple:hover { background: #5100c4; }
+
         /* Layout */
         .main { flex: 1; display: flex; overflow: hidden; }
         .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
-        
         .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
-        
         .viewport { flex: 1; overflow: auto; background: #111; display: grid; place-items: center; position: relative; }
         
-        /* Canvas */
-        canvas { 
-            image-rendering: pixelated; 
-            box-shadow: 0 0 20px #000; 
-            display: block; 
-        }
+        canvas { image-rendering: pixelated; box-shadow: 0 0 20px #000; display: block; }
         .bg-check {
             background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
             background-size: 20px 20px;
         }
 
-        /* Footer */
         .bar { background: #007acc; color: white; padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; font-weight: bold; }
-        
-        /* Utils */
         .hide { display: none; }
     </style>
 </head>
@@ -59,9 +51,7 @@
                 <option value="free">Livre</option>
             </select>
         </div>
-
         <div class="sep"></div>
-
         <div>
             <label>Grid (W/H)</label>
             <div style="display:flex; gap:2px">
@@ -69,156 +59,117 @@
                 <input type="number" id="inpH" value="32">
             </div>
         </div>
-        
         <div>
             <label>Zoom</label>
             <input type="range" id="rngZoom" min="1" max="4" step="0.5" value="1" style="width:60px">
         </div>
-
         <div class="sep"></div>
         <button onclick="undo()">↩ Desfazer</button>
-
         <div style="margin-left: auto; display:flex; gap: 10px;">
-            <button onclick="$('fSrc').click()"> Abrir Origem</button>
-            <button onclick="$('fDest').click()"> Editar Base</button>
-            <button class="btn-blue" onclick="save()"> Salvar</button>
-            
+            <button class="btn-purple" onclick="$('fConv').click()" title="Converter MV(48px) para Ace(32px)">⚡ Importar MV/MZ</button>
+            <div class="sep"></div>
+            <button onclick="$('fSrc').click()">📂 Abrir Origem</button>
+            <button onclick="$('fDest').click()">✏️ Editar Base</button>
+            <button class="btn-blue" onclick="save()">💾 Salvar</button>
             <input type="file" id="fSrc" class="hide" accept="image/*">
             <input type="file" id="fDest" class="hide" accept="image/*">
+            <input type="file" id="fConv" class="hide" accept="image/*">
         </div>
     </div>
 
     <div class="main">
-        <!-- Esquerda -->
         <div class="panel">
-            <div class="header">
-                <span>ORIGEM</span> <span style="color:#007acc">Segure & Arraste</span>
-            </div>
+            <div class="header"><span>ORIGEM</span> <span style="color:#007acc">Segure & Arraste</span></div>
             <div class="viewport bg-check" id="wrapSrc">
                 <canvas id="cSrc" style="cursor: crosshair;"></canvas>
             </div>
         </div>
-
-        <!-- Direita -->
         <div class="panel">
-            <div class="header">
-                <span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span>
-            </div>
+            <div class="header"><span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span></div>
             <div class="viewport bg-check" id="wrapDest">
                 <canvas id="cDest" style="cursor: none;"></canvas>
             </div>
         </div>
     </div>
-
     <div class="bar">
-        <span id="log">Pronto.</span>
+        <span id="log">Sistema Limpo e Pronto.</span>
         <span id="pos">0, 0</span>
     </div>
 
     <script>
-        const $ = id => document.getElementById(id); // atalho basico
-
-        // Globais
+        const $ = id => document.getElementById(id);
         let grid = { w: 32, h: 32 };
-        let state = {
-            zoom: 1,
-            selecting: false,
-            pStart: {x:0, y:0},
-            rect: {x:0, y:0, w:0, h:0},
-            clip: null, // bitmap copiado
-            history: [],
-            hIdx: -1
-        };
+        let state = { zoom: 1, selecting: false, pStart: {x:0, y:0}, rect: {x:0, y:0, w:0, h:0}, clip: null, history: [], hIdx: -1 };
 
-        const cSrc = $('cSrc');
-        const cDest = $('cDest');
+        const cSrc = $('cSrc'), cDest = $('cDest');
         const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
         const ctxD = cDest.getContext('2d', { willReadFrequently: true });
-        
-        // Imagens carregadas
         let imgS = null;
 
-        // Init rapido
         ctxS.imageSmoothingEnabled = false;
         ctxD.imageSmoothingEnabled = false;
         resizeDest(512, 512);
 
-        // --- Eventos da UI ---
-
+        // --- Eventos UI ---
         $('selMode').onchange = function() {
-            let m = this.value;
-            let w=32, h=32;
+            let m = this.value, w=32, h=32;
             if(m === 'faceset') { w=96; h=96; }
             if(m === 'free') { w=1; h=1; }
-            $('inpW').value = w;
-            $('inpH').value = h;
+            $('inpW').value = w; $('inpH').value = h;
             updateGrid();
         };
-
-        $('inpW').onchange = updateGrid;
-        $('inpH').onchange = updateGrid;
-        
+        $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
         $('rngZoom').oninput = function() {
             state.zoom = this.value;
-            cSrc.style.transform = `scale(${state.zoom})`;
-            cDest.style.transform = `scale(${state.zoom})`;
-            // hack pra centralizar no scroll
+            cSrc.style.transform = cDest.style.transform = `scale(${state.zoom})`;
             let pad = (state.zoom - 1) * 100;
-            $('wrapSrc').style.padding = pad + 'px';
-            $('wrapDest').style.padding = pad + 'px';
+            $('wrapSrc').style.padding = $('wrapDest').style.padding = pad + 'px';
         };
-
         function updateGrid() {
-            grid.w = parseInt($('inpW').value) || 32;
-            grid.h = parseInt($('inpH').value) || 32;
+            grid.w = parseInt($('inpW').value) || 32; grid.h = parseInt($('inpH').value) || 32;
             drawSrc();
         }
 
-        // --- Core Logic ---
-
+        // --- Desenho ---
         function drawSrc() {
             if(!imgS) return;
             ctxS.clearRect(0,0, cSrc.width, cSrc.height);
             ctxS.drawImage(imgS, 0, 0);
-
-            // Grade simples
-            ctxS.beginPath();
-            ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
+            
+            // Grade
+            ctxS.beginPath(); ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
             for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
             for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
             ctxS.stroke();
-
-            // Seleção
+            
+            // Seleção Azul
             if(state.rect.w > 0) {
-                ctxS.strokeStyle = '#00e5ff';
-                ctxS.lineWidth = 2;
-                ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
+                ctxS.strokeStyle = '#00e5ff'; ctxS.lineWidth = 2; ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
                 ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
                 ctxS.strokeRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
             }
         }
 
         function drawDest(gx, gy) {
-            // Limpa e redesenha do histórico atual
+            // 1. Restaura o histórico LIMPO (sem fantasmas anteriores)
             if(state.history[state.hIdx]) {
                 ctxD.putImageData(state.history[state.hIdx], 0, 0);
             } else {
                 ctxD.clearRect(0,0, cDest.width, cDest.height);
             }
 
-            // Ghost do clipboard
+            // 2. Desenha o Fantasma (APENAS VISUAL)
             if(state.clip && gx !== undefined) {
                 ctxD.save();
                 ctxD.globalAlpha = 0.6;
                 ctxD.drawImage(state.clip, gx, gy);
-                ctxD.strokeStyle = '#00e5ff';
-                ctxD.strokeRect(gx, gy, state.rect.w, state.rect.h);
+                ctxD.strokeStyle = '#00e5ff'; 
+                ctxD.strokeRect(gx, gy, state.rect.w, state.rect.h); // Borda azul do fantasma
                 ctxD.restore();
             }
         }
 
-        // --- Mouse Origem (Seleção) ---
-
+        // --- Lógica Mouse Origem ---
         cSrc.onmousedown = e => {
             if(!imgS) return;
             state.selecting = true;
@@ -227,153 +178,117 @@
             state.rect = { x: p.x, y: p.y, w: grid.w, h: grid.h };
             drawSrc();
         };
-
         cSrc.onmousemove = e => {
             if(!state.selecting) return;
             let p = getPos(cSrc, e);
-            
-            // Logica de arrastar retangulo
-            let x = Math.min(state.pStart.x, p.x);
-            let y = Math.min(state.pStart.y, p.y);
-            let w = Math.abs(p.x - state.pStart.x) + grid.w;
-            let h = Math.abs(p.y - state.pStart.y) + grid.h;
-            
+            let x = Math.min(state.pStart.x, p.x), y = Math.min(state.pStart.y, p.y);
+            let w = Math.abs(p.x - state.pStart.x) + grid.w, h = Math.abs(p.y - state.pStart.y) + grid.h;
             state.rect = {x, y, w, h};
             drawSrc();
         };
-
         window.onmouseup = () => {
             if(state.selecting) {
                 state.selecting = false;
-                // Copiar para memoria
-                ctxS.drawImage(imgS, 0, 0); // remove overlay pra copiar limpo
+                ctxS.drawImage(imgS, 0, 0); // Limpa para copiar
                 let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
-                drawSrc(); // volta overlay
-                
-                createImageBitmap(data).then(bmp => {
-                    state.clip = bmp;
-                    log(`Copiado: ${state.rect.w}x${state.rect.h}`);
-                });
+                drawSrc(); // Restaura visual
+                createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado: ${state.rect.w}x${state.rect.h}`); });
             }
         };
 
-        // --- Mouse Destino (Colar) ---
-
+        // --- Lógica Mouse Destino (A CORREÇÃO ESTÁ AQUI) ---
         cDest.onmousemove = e => {
             let p = getPos(cDest, e);
             $('pos').innerText = `${p.x}, ${p.y}`;
             drawDest(p.x, p.y);
         };
-        
         cDest.onmouseleave = () => drawDest();
 
         cDest.onmousedown = e => {
             let p = getPos(cDest, e);
             
+            // CORREÇÃO: Antes de colar, limpamos qualquer "fantasma" que esteja desenhado na tela
+            // Restaurando o backup limpo do histórico
+            if(state.history[state.hIdx]) {
+                ctxD.putImageData(state.history[state.hIdx], 0, 0);
+            } else {
+                ctxD.clearRect(0, 0, cDest.width, cDest.height);
+            }
+
             if(e.button === 0 && state.clip) {
-                // Colar
-                // ctxD.clearRect(p.x, p.y, state.rect.w, state.rect.h); // descomentar se quiser apagar fundo
+                // Agora colamos no canvas LIMPO
                 ctxD.drawImage(state.clip, p.x, p.y);
-                pushHistory();
-                drawDest(p.x, p.y);
-            } 
-            else if(e.button === 2) {
-                // Borracha
+                pushHistory(); // Salvamos o estado (Pixels + Sprite Novo)
+                drawDest(p.x, p.y); // E só agora desenhamos o fantasma de novo pra você ver
+            } else if(e.button === 2) {
                 ctxD.clearRect(p.x, p.y, state.rect.w || grid.w, state.rect.h || grid.h);
                 pushHistory();
                 drawDest(p.x, p.y);
             }
         };
-
         cDest.oncontextmenu = e => e.preventDefault();
 
         // --- Helpers ---
-
-        function getPos(canvas, e) {
-            let r = canvas.getBoundingClientRect();
-            let rx = (e.clientX - r.left) / state.zoom;
-            let ry = (e.clientY - r.top) / state.zoom;
-            // Snap
-            return {
-                x: Math.floor(rx / grid.w) * grid.w,
-                y: Math.floor(ry / grid.h) * grid.h
-            };
+        function getPos(c, e) {
+            let r = c.getBoundingClientRect();
+            let rx = (e.clientX - r.left) / state.zoom, ry = (e.clientY - r.top) / state.zoom;
+            return { x: Math.floor(rx/grid.w)*grid.w, y: Math.floor(ry/grid.h)*grid.h };
         }
-
         function resizeDest(w, h) {
-            cDest.width = w;
-            cDest.height = h;
+            cDest.width = w; cDest.height = h;
             ctxD.imageSmoothingEnabled = false;
-            pushHistory();
-            drawDest();
+            pushHistory(); drawDest();
         }
-
-        // --- Undo / History ---
-        
         function pushHistory() {
             let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
-            // Corta histórico se voltamos no tempo
             state.history = state.history.slice(0, state.hIdx + 1);
             state.history.push(data);
-            if(state.history.length > 15) state.history.shift(); // max 15
-            else state.hIdx++;
+            if(state.history.length > 20) state.history.shift(); else state.hIdx++;
         }
-
         function undo() {
             if(state.hIdx > 0) {
                 state.hIdx--;
-                let data = state.history[state.hIdx];
-                ctxD.putImageData(data, 0, 0);
-                drawDest();
+                ctxD.putImageData(state.history[state.hIdx], 0, 0); // Restaura dados brutos
+                drawDest(); // Redesenha (sem fantasma)
                 log("Desfeito.");
             }
         }
+        function log(msg) { $('log').innerText = msg; }
 
-        // --- Files ---
-
+        // --- Arquivos ---
         $('fSrc').onchange = function() { loadImg(this, true); };
         $('fDest').onchange = function() { loadImg(this, false); };
-
-        function loadImg(input, isSrc) {
-            if(!input.files[0]) return;
+        $('fConv').onchange = function() {
+            if(!this.files[0]) return;
             let img = new Image();
             img.onload = () => {
-                if(isSrc) {
-                    imgS = img;
-                    cSrc.width = img.width;
-                    cSrc.height = img.height;
-                    ctxS.imageSmoothingEnabled = false;
-                    drawSrc();
-                } else {
-                    resizeDest(img.width, img.height);
-                    ctxD.drawImage(img, 0, 0);
-                    pushHistory();
-                }
+                let tw = Math.floor(img.width * (2/3)), th = Math.floor(img.height * (2/3));
+                let tmp = document.createElement('canvas'); tmp.width = tw; tmp.height = th;
+                let tCtx = tmp.getContext('2d');
+                tCtx.imageSmoothingEnabled = true; tCtx.imageSmoothingQuality = 'high';
+                tCtx.drawImage(img, 0, 0, tw, th);
+                let cImg = new Image();
+                cImg.onload = () => { imgS = cImg; cSrc.width = tw; cSrc.height = th; ctxS.imageSmoothingEnabled = false; drawSrc(); log("Convertido e Carregado."); };
+                cImg.src = tmp.toDataURL();
             };
-            img.src = URL.createObjectURL(input.files[0]);
-            input.value = '';
+            img.src = URL.createObjectURL(this.files[0]); this.value = '';
+        };
+        function loadImg(inp, isSrc) {
+            if(!inp.files[0]) return;
+            let img = new Image();
+            img.onload = () => {
+                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; ctxS.imageSmoothingEnabled = false; drawSrc(); }
+                else { resizeDest(img.width, img.height); ctxD.drawImage(img, 0, 0); pushHistory(); }
+            };
+            img.src = URL.createObjectURL(inp.files[0]); inp.value = '';
         }
-
         function save() {
-            let link = document.createElement('a');
-            // Hack pra baixar o buffer atual do canvas
-            // Precisamos renderizar o histórico puro sem o ghost
-            let temp = document.createElement('canvas');
-            temp.width = cDest.width; temp.height = cDest.height;
-            temp.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
-            
-            link.download = 'tileset_edit.png';
-            link.href = temp.toDataURL();
-            link.click();
+            let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
+            // Salva EXATAMENTE o que está no histórico (Pixels puros), ignorando o que está na tela (Fantasmas/Grades)
+            t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
+            let a = document.createElement('a'); a.download = 'tileset_final.png'; a.href = t.toDataURL(); a.click();
         }
-        
-        function log(msg) { $('log').innerText = msg; }
-        
-        // Atalho Ctrl+Z
-        document.addEventListener('keydown', e => {
-            if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
-        });
-
+        document.addEventListener('keydown', e => { if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); } });
     </script>
 </body>
 </html>
