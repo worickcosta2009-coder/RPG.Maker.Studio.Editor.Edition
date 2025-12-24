@@ -2,16 +2,13 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Pixel Perfect FIX</title>
+    <title>RPG Maker Studio - Magic Wand</title>
     <style>
         body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
-        /* Toolbar */
         .tools { background: #202020; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap;}
         .sep { width: 1px; height: 30px; background: #333; margin: 0 5px; }
-        
         label { font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; display: block; }
-        
         select, input { background: #333; border: 1px solid #444; color: white; padding: 4px; border-radius: 3px; }
         input[type="number"] { width: 40px; text-align: center; }
         
@@ -19,9 +16,10 @@
         button:hover { background: #444; }
         
         .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
-        .btn-purple { background: #6a00ff; border-color: #5100c4; color: white; }
+        .btn-magic { background: #e91e63; border-color: #c2185b; color: white; } /* Botão Rosa */
+        .btn-magic:hover { background: #c2185b; }
+        .btn-active { box-shadow: 0 0 10px #e91e63 inset; border: 2px solid white; }
 
-        /* Layout */
         .main { flex: 1; display: flex; overflow: hidden; }
         .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
         .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
@@ -30,12 +28,8 @@
         #wrapDest { position: relative; }
         #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } 
         
-        /* CSS CRÍTICO PARA PIXEL ART */
         canvas { 
-            image-rendering: -moz-crisp-edges;
-            image-rendering: -webkit-crisp-edges;
             image-rendering: pixelated;
-            image-rendering: crisp-edges;
             box-shadow: 0 0 20px #000; 
             display: block; 
         }
@@ -44,7 +38,6 @@
             background-image: linear-gradient(45deg, #222 25%, transparent 25%), linear-gradient(-45deg, #222 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #222 75%), linear-gradient(-45deg, transparent 75%, #222 75%);
             background-size: 20px 20px;
         }
-
         .bar { background: #007acc; color: white; padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; font-weight: bold; }
         .hide { display: none; }
     </style>
@@ -64,48 +57,54 @@
         </div>
         <div class="sep"></div>
         <div>
-            <label>Grid (W/H)</label>
+            <label>Grid</label>
             <div style="display:flex; gap:2px">
                 <input type="number" id="inpW" value="24">
                 <input type="number" id="inpH" value="24">
             </div>
         </div>
+        
+        <!-- BOTÃO MÁGICO NOVO -->
+        <div class="sep"></div>
+        <button id="btnMagic" class="btn-magic" onclick="toggleMagic()">🪄 Remover Fundo (Cor)</button>
+        
         <div style="margin-left: auto; display:flex; gap: 10px;">
-            <button class="btn-purple" onclick="$('fConv').click()">⚡ Importar MV/MZ (Sem Blur)</button>
-            <div class="sep"></div>
-            <button onclick="$('fSrc').click()">📂 Abrir Origem</button>
-            <button onclick="$('fDest').click()">✏️ Editar Base</button>
+            <button onclick="$('fSrc').click()">📂 Origem</button>
+            <button onclick="$('fDest').click()">✏️ Editar</button>
             <button class="btn-blue" onclick="save()">💾 Salvar</button>
             <input type="file" id="fSrc" class="hide" accept="image/*">
             <input type="file" id="fDest" class="hide" accept="image/*">
-            <input type="file" id="fConv" class="hide" accept="image/*">
         </div>
     </div>
 
     <div class="main">
         <div class="panel">
-            <div class="header"><span>ORIGEM</span> <span style="color:#007acc">Segure & Arraste</span></div>
-            <div class="viewport bg-check" id="wrapSrc">
+            <div class="header"><span>ORIGEM</span> <span id="srcMsg" style="color:#007acc">Segure & Arraste</span></div>
+            <div class="viewport bg-check">
                 <canvas id="cSrc" style="cursor: crosshair;"></canvas>
             </div>
         </div>
         <div class="panel">
             <div class="header"><span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span></div>
             <div class="viewport bg-check" id="wrapDest">
-                <canvas id="cDest" style="cursor: crosshair;"></canvas>
+                <canvas id="cDest"></canvas>
                 <canvas id="cDestOverlay"></canvas>
             </div>
         </div>
     </div>
     <div class="bar">
-        <span id="log">Modo Pixel Perfect Ativado.</span>
+        <span id="log">Sistema Pronto.</span>
         <span id="pos">0, 0</span>
     </div>
 
     <script>
         const $ = id => document.getElementById(id);
         let grid = { w: 24, h: 24 };
-        let state = { zoom: 1, selecting: false, pStart: {x:0, y:0}, rect: {x:0, y:0, w:0, h:0}, clip: null, history: [], hIdx: -1 };
+        let state = { 
+            zoom: 1, selecting: false, magicMode: false,
+            pStart: {x:0, y:0}, rect: {x:0, y:0, w:0, h:0}, 
+            clip: null, history: [], hIdx: -1 
+        };
 
         const cSrc = $('cSrc'), cDest = $('cDest'), cOver = $('cDestOverlay');
         const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
@@ -113,29 +112,20 @@
         const ctxO = cOver.getContext('2d');
         let imgS = null;
 
-        // O SEGREDO DO PIXEL ART: DESATIVAR SUAVIZAÇÃO EM TUDO
-        function enforcePixelArt(ctx) {
-            ctx.imageSmoothingEnabled = false;
-            ctx.mozImageSmoothingEnabled = false;
-            ctx.webkitImageSmoothingEnabled = false;
-            ctx.msImageSmoothingEnabled = false;
-        }
-
-        enforcePixelArt(ctxS);
-        enforcePixelArt(ctxD);
-        enforcePixelArt(ctxO);
+        // Force Pixel Art
+        function enforce(ctx) { ctx.imageSmoothingEnabled = false; }
+        enforce(ctxS); enforce(ctxD); enforce(ctxO);
 
         function init() {
             $('selMode').onchange = function() {
                 let m = this.value, w=32, h=32;
                 if(m === 'iconset') { w=24; h=24; }
                 if(m === 'faceset') { w=96; h=96; }
-                if(m === 'free') { w=1; h=1; }
                 $('inpW').value = w; $('inpH').value = h;
                 updateGrid();
             };
             $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
-            resizeDest(24*16, 24*20); 
+            resizeDest(24*16, 24*20);
         }
         
         function updateGrid() {
@@ -143,20 +133,65 @@
             drawSrc();
         }
 
+        // --- VARINHA MÁGICA (NOVA FUNÇÃO) ---
+        function toggleMagic() {
+            state.magicMode = !state.magicMode;
+            const btn = $('btnMagic');
+            const msg = $('srcMsg');
+            
+            if(state.magicMode) {
+                btn.classList.add('btn-active');
+                btn.innerText = "Clique na cor para apagar";
+                cSrc.style.cursor = "pointer";
+                msg.innerText = "MODO BORRACHA: CLIQUE NO AZUL";
+                msg.style.color = "#e91e63";
+            } else {
+                btn.classList.remove('btn-active');
+                btn.innerText = "🪄 Remover Fundo (Cor)";
+                cSrc.style.cursor = "crosshair";
+                msg.innerText = "Segure & Arraste";
+                msg.style.color = "#007acc";
+            }
+        }
+
+        function removeColor(targetR, targetG, targetB) {
+            const w = cSrc.width, h = cSrc.height;
+            const imgData = ctxS.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            let count = 0;
+
+            for (let i = 0; i < d.length; i += 4) {
+                // Tolerância pequena (para pegar variações leves de azul)
+                if (Math.abs(d[i] - targetR) < 10 &&
+                    Math.abs(d[i+1] - targetG) < 10 &&
+                    Math.abs(d[i+2] - targetB) < 10) {
+                    d[i+3] = 0; // Alpha 0 = Transparente
+                    count++;
+                }
+            }
+            
+            ctxS.putImageData(imgData, 0, 0);
+            
+            // Atualiza a imagem "Fonte" em memória para o seletor pegar a versão transparente
+            createImageBitmap(imgData).then(bmp => {
+                imgS = bmp; // Substitui a imagem original pela transparente
+                log(`Fundo removido! ${count} pixels apagados.`);
+                toggleMagic(); // Desliga o modo mágico
+            });
+        }
+
+        // --- DRAWING ---
         function drawSrc() {
             if(!imgS) return;
-            enforcePixelArt(ctxS); // Garante que não ativa sozinho
             ctxS.clearRect(0,0, cSrc.width, cSrc.height);
             ctxS.drawImage(imgS, 0, 0);
             
-            // Grade
             ctxS.beginPath(); ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
             for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
             for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
             ctxS.stroke();
             
-            // Seleção
-            if(state.rect.w > 0) {
+            if(state.rect.w > 0 && !state.magicMode) {
                 ctxS.strokeStyle = '#00e5ff'; ctxS.lineWidth = 2; ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
                 ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
                 ctxS.strokeRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
@@ -166,8 +201,7 @@
         function drawOverlay(gx, gy) {
             ctxO.clearRect(0,0, cOver.width, cOver.height);
             if(state.clip && gx !== undefined) {
-                ctxO.save();
-                enforcePixelArt(ctxO);
+                ctxO.save(); enforce(ctxO);
                 ctxO.globalAlpha = 0.7;
                 ctxO.drawImage(state.clip, gx, gy);
                 ctxO.strokeStyle = '#00e5ff';
@@ -176,46 +210,57 @@
             }
         }
 
+        // --- MOUSE SRC ---
         cSrc.onmousedown = e => {
             if(!imgS) return;
-            state.selecting = true;
             let p = getPos(cSrc, e);
+
+            // SE TIVER NO MODO MÁGICO, REMOVE COR
+            if(state.magicMode) {
+                // Pega a cor exata do pixel clicado
+                const pixel = ctxS.getImageData(p.realX, p.realY, 1, 1).data;
+                removeColor(pixel[0], pixel[1], pixel[2]);
+                return;
+            }
+
+            state.selecting = true;
             state.pStart = p;
             state.rect = { x: p.x, y: p.y, w: grid.w, h: grid.h };
             drawSrc();
         };
-        
+
         cSrc.onmousemove = e => {
-            if(!state.selecting) return;
+            if(state.magicMode || !state.selecting) return;
             let p = getPos(cSrc, e);
             let x = Math.min(state.pStart.x, p.x), y = Math.min(state.pStart.y, p.y);
             let w = Math.abs(p.x - state.pStart.x) + grid.w, h = Math.abs(p.y - state.pStart.y) + grid.h;
             state.rect = {x, y, w, h};
             drawSrc();
         };
-        
+
         window.onmouseup = () => {
             if(state.selecting) {
                 state.selecting = false;
-                ctxS.drawImage(imgS, 0, 0); // Copia imagem limpa
+                // Truque: Desenhamos a imagem (que já pode estar transparente) e cortamos
+                ctxS.clearRect(0,0,cSrc.width,cSrc.height);
+                ctxS.drawImage(imgS, 0, 0); 
                 let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
-                drawSrc();
-                createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado: ${state.rect.w}x${state.rect.h}`); });
+                drawSrc(); // Redesenha grades
+                createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado!`); });
             }
         };
 
+        // --- MOUSE DEST ---
         cDest.onmousemove = e => {
             let p = getPos(cDest, e);
             $('pos').innerText = `${p.x}, ${p.y}`;
             drawOverlay(p.x, p.y);
         };
-        
         cDest.onmouseleave = () => ctxO.clearRect(0,0,cOver.width, cOver.height);
-
         cDest.onmousedown = e => {
             let p = getPos(cDest, e);
             if(e.button === 0 && state.clip) {
-                enforcePixelArt(ctxD); // Garante pixel art
+                enforce(ctxD);
                 ctxD.drawImage(state.clip, p.x, p.y);
                 pushHistory();
             } else if(e.button === 2) {
@@ -223,88 +268,55 @@
                 pushHistory();
             }
         };
-        
         cDest.oncontextmenu = e => e.preventDefault();
 
+        // --- UTIL ---
         function getPos(c, e) {
             let r = c.getBoundingClientRect();
-            // Correção para o Zoom não estragar a posição
-            let rx = (e.clientX - r.left), ry = (e.clientY - r.top);
-            // Como usamos transform: scale, o offset já vem escalado, não precisamos dividir pelo zoom aqui se o canvas tiver tamanho fixo,
-            // MAS como o wrapper tem scroll, precisamos ajustar. O jeito mais fácil é:
-            // O elemento clicado é o canvas. O evento dá posição relativa ao viewport.
-            // O getBoundingClientRect já considera o scale transform.
-            // Precisamos saber a proporção entre o tamanho visual e o tamanho real do canvas.
-            let scaleX = c.width / r.width;
-            let scaleY = c.height / r.height;
+            // Precisamos da posição real (sem grid) para a varinha mágica
+            let realX = e.clientX - r.left; 
+            let realY = e.clientY - r.top;
             
-            let finalX = rx * scaleX;
-            let finalY = ry * scaleY;
+            // Correção de escala caso o canvas esteja redimensionado via CSS
+            realX = realX * (c.width / r.width);
+            realY = realY * (c.height / r.height);
 
-            return { x: Math.floor(finalX/grid.w)*grid.w, y: Math.floor(finalY/grid.h)*grid.h };
+            return { 
+                realX: Math.floor(realX),
+                realY: Math.floor(realY),
+                x: Math.floor(realX/grid.w)*grid.w, 
+                y: Math.floor(realY/grid.h)*grid.h 
+            };
         }
 
         function resizeDest(w, h) {
-            cDest.width = cOver.width = w;
-            cDest.height = cOver.height = h;
-            enforcePixelArt(ctxD);
-            pushHistory();
+            cDest.width = cOver.width = w; cDest.height = cOver.height = h;
+            enforce(ctxD); pushHistory();
         }
-        
         function pushHistory() {
             let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
             state.history = state.history.slice(0, state.hIdx + 1);
             state.history.push(data);
             if(state.history.length > 20) state.history.shift(); else state.hIdx++;
         }
-        
-        function undo() {
-            if(state.hIdx > 0) {
-                state.hIdx--;
-                ctxD.putImageData(state.history[state.hIdx], 0, 0);
-                log("Desfeito.");
-            }
-        }
-        
         function log(msg) { $('log').innerText = msg; }
+        function save() {
+            let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
+            t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
+            let a = document.createElement('a'); a.download = 'recurso_limpo.png'; a.href = t.toDataURL(); a.click();
+        }
 
+        // --- FILES ---
         $('fSrc').onchange = function() { loadImg(this, true); };
         $('fDest').onchange = function() { loadImg(this, false); };
-        
-        // --- CONVERSOR CORRIGIDO (SEM BLUR) ---
-        $('fConv').onchange = function() {
-            if(!this.files[0]) return;
-            let img = new Image();
-            img.onload = () => {
-                let tw = Math.floor(img.width * (2/3)), th = Math.floor(img.height * (2/3));
-                let tmp = document.createElement('canvas'); tmp.width = tw; tmp.height = th;
-                let tCtx = tmp.getContext('2d');
-                
-                // AQUI ESTAVA O ERRO! AGORA ESTÁ 'FALSE'
-                enforcePixelArt(tCtx);
-                
-                tCtx.drawImage(img, 0, 0, tw, th);
-                let cImg = new Image();
-                cImg.onload = () => { imgS = cImg; cSrc.width = tw; cSrc.height = th; enforcePixelArt(ctxS); drawSrc(); log("Importado (Nítido)."); };
-                cImg.src = tmp.toDataURL();
-            };
-            img.src = URL.createObjectURL(this.files[0]); this.value = '';
-        };
-
         function loadImg(inp, isSrc) {
             if(!inp.files[0]) return;
             let img = new Image();
             img.onload = () => {
-                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; enforcePixelArt(ctxS); drawSrc(); }
-                else { resizeDest(img.width, img.height); enforcePixelArt(ctxD); ctxD.drawImage(img, 0, 0); pushHistory(); }
+                if(isSrc) { imgS = img; cSrc.width = img.width; cSrc.height = img.height; enforce(ctxS); drawSrc(); }
+                else { resizeDest(img.width, img.height); enforce(ctxD); ctxD.drawImage(img, 0, 0); pushHistory(); }
             };
             img.src = URL.createObjectURL(inp.files[0]); inp.value = '';
-        }
-
-        function save() {
-            let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
-            t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
-            let a = document.createElement('a'); a.download = 'pixel_perfect_recurso.png'; a.href = t.toDataURL(); a.click();
         }
 
         init();
