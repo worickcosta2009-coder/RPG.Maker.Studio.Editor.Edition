@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RPG Maker Studio - Clean Build</title>
+    <title>RPG Maker Studio - Overlay Fix</title>
     <style>
         body { background: #181818; color: #ccc; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
         
@@ -19,15 +19,17 @@
         button:hover { background: #444; }
         
         .btn-blue { background: #007acc; border-color: #005a9e; color: white; }
-        .btn-blue:hover { background: #005a9e; }
         .btn-purple { background: #6a00ff; border-color: #5100c4; color: white; }
-        .btn-purple:hover { background: #5100c4; }
 
         /* Layout */
         .main { flex: 1; display: flex; overflow: hidden; }
         .panel { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; min-width: 0; }
         .header { background: #252526; padding: 5px 10px; font-size: 11px; font-weight: bold; color: #888; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        
+        /* O segredo da arquitetura Overlay */
         .viewport { flex: 1; overflow: auto; background: #111; display: grid; place-items: center; position: relative; }
+        #wrapDest { position: relative; } /* Container para o overlay */
+        #cDestOverlay { position: absolute; top: 0; left: 0; pointer-events: none; } /* O Overlay fica por cima e não recebe cliques */
         
         canvas { image-rendering: pixelated; box-shadow: 0 0 20px #000; display: block; }
         .bg-check {
@@ -43,8 +45,9 @@
 
     <div class="tools">
         <div>
-            <label>Tipo</label>
+            <label>Modo</label>
             <select id="selMode">
+                <option value="iconset">Iconset (24px)</option>
                 <option value="tileset">Tileset (32px)</option>
                 <option value="char">Charset</option>
                 <option value="faceset">Faceset</option>
@@ -55,22 +58,16 @@
         <div>
             <label>Grid (W/H)</label>
             <div style="display:flex; gap:2px">
-                <input type="number" id="inpW" value="32">
-                <input type="number" id="inpH" value="32">
+                <input type="number" id="inpW" value="24">
+                <input type="number" id="inpH" value="24">
             </div>
         </div>
-        <div>
-            <label>Zoom</label>
-            <input type="range" id="rngZoom" min="1" max="4" step="0.5" value="1" style="width:60px">
-        </div>
-        <div class="sep"></div>
-        <button onclick="undo()">↩ Desfazer</button>
         <div style="margin-left: auto; display:flex; gap: 10px;">
-            <button class="btn-purple" onclick="$('fConv').click()" title="Converter MV(48px) para Ace(32px)">⚡ Importar MV/MZ</button>
+            <button class="btn-purple" onclick="$('fConv').click()">⚡ Importar MV/MZ</button>
             <div class="sep"></div>
             <button onclick="$('fSrc').click()">📂 Abrir Origem</button>
             <button onclick="$('fDest').click()">✏️ Editar Base</button>
-            <button class="btn-blue" onclick="save()">💾 Salvar</button>
+            <button class="btn-blue" onclick="save()">💾 Salvar Limpo</button>
             <input type="file" id="fSrc" class="hide" accept="image/*">
             <input type="file" id="fDest" class="hide" accept="image/*">
             <input type="file" id="fConv" class="hide" accept="image/*">
@@ -87,46 +84,49 @@
         <div class="panel">
             <div class="header"><span>DESTINO</span> <span>Esq: Colar | Dir: Apagar</span></div>
             <div class="viewport bg-check" id="wrapDest">
-                <canvas id="cDest" style="cursor: none;"></canvas>
+                <canvas id="cDest" style="cursor: crosshair;"></canvas>
+                <canvas id="cDestOverlay"></canvas> <!-- NOVO CANVAS OVERLAY -->
             </div>
         </div>
     </div>
     <div class="bar">
-        <span id="log">Sistema Limpo e Pronto.</span>
+        <span id="log">Overlay Architecture. Pronto para salvar sem marcas.</span>
         <span id="pos">0, 0</span>
     </div>
 
     <script>
         const $ = id => document.getElementById(id);
-        let grid = { w: 32, h: 32 };
+        let grid = { w: 24, h: 24 };
         let state = { zoom: 1, selecting: false, pStart: {x:0, y:0}, rect: {x:0, y:0, w:0, h:0}, clip: null, history: [], hIdx: -1 };
 
-        const cSrc = $('cSrc'), cDest = $('cDest');
+        const cSrc = $('cSrc'), cDest = $('cDest'), cOver = $('cDestOverlay');
         const ctxS = cSrc.getContext('2d', { willReadFrequently: true });
         const ctxD = cDest.getContext('2d', { willReadFrequently: true });
+        const ctxO = cOver.getContext('2d'); // Contexto do Overlay
         let imgS = null;
 
         ctxS.imageSmoothingEnabled = false;
         ctxD.imageSmoothingEnabled = false;
-        resizeDest(512, 512);
+        ctxO.imageSmoothingEnabled = false;
 
-        // --- Eventos UI ---
-        $('selMode').onchange = function() {
-            let m = this.value, w=32, h=32;
-            if(m === 'faceset') { w=96; h=96; }
-            if(m === 'free') { w=1; h=1; }
-            $('inpW').value = w; $('inpH').value = h;
-            updateGrid();
-        };
-        $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
-        $('rngZoom').oninput = function() {
-            state.zoom = this.value;
-            cSrc.style.transform = cDest.style.transform = `scale(${state.zoom})`;
-            let pad = (state.zoom - 1) * 100;
-            $('wrapSrc').style.padding = $('wrapDest').style.padding = pad + 'px';
-        };
+        // --- Init & UI ---
+        function init() {
+            $('selMode').onchange = function() {
+                let m = this.value, w=32, h=32;
+                if(m === 'iconset') { w=24; h=24; }
+                if(m === 'faceset') { w=96; h=96; }
+                if(m === 'free') { w=1; h=1; }
+                $('inpW').value = w; $('inpH').value = h;
+                updateGrid();
+            };
+            $('inpW').onchange = updateGrid; $('inpH').onchange = updateGrid;
+
+            // Inicia com Iconset por causa da imagem do user
+            resizeDest(24*16, 24*20); 
+        }
+        
         function updateGrid() {
-            grid.w = parseInt($('inpW').value) || 32; grid.h = parseInt($('inpH').value) || 32;
+            grid.w = parseInt($('inpW').value) || 24; grid.h = parseInt($('inpH').value) || 24;
             drawSrc();
         }
 
@@ -135,14 +135,10 @@
             if(!imgS) return;
             ctxS.clearRect(0,0, cSrc.width, cSrc.height);
             ctxS.drawImage(imgS, 0, 0);
-            
-            // Grade
             ctxS.beginPath(); ctxS.strokeStyle = 'rgba(255,255,255,0.2)';
             for(let x=0; x<=cSrc.width; x+=grid.w) { ctxS.moveTo(x,0); ctxS.lineTo(x,cSrc.height); }
             for(let y=0; y<=cSrc.height; y+=grid.h) { ctxS.moveTo(0,y); ctxS.lineTo(cSrc.width,y); }
             ctxS.stroke();
-            
-            // Seleção Azul
             if(state.rect.w > 0) {
                 ctxS.strokeStyle = '#00e5ff'; ctxS.lineWidth = 2; ctxS.fillStyle = 'rgba(0, 122, 204, 0.3)';
                 ctxS.fillRect(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
@@ -150,26 +146,20 @@
             }
         }
 
-        function drawDest(gx, gy) {
-            // 1. Restaura o histórico LIMPO (sem fantasmas anteriores)
-            if(state.history[state.hIdx]) {
-                ctxD.putImageData(state.history[state.hIdx], 0, 0);
-            } else {
-                ctxD.clearRect(0,0, cDest.width, cDest.height);
-            }
-
-            // 2. Desenha o Fantasma (APENAS VISUAL)
+        // AGORA DESENHA APENAS NO OVERLAY TRANSPARENTE
+        function drawOverlay(gx, gy) {
+            ctxO.clearRect(0,0, cOver.width, cOver.height);
             if(state.clip && gx !== undefined) {
-                ctxD.save();
-                ctxD.globalAlpha = 0.6;
-                ctxD.drawImage(state.clip, gx, gy);
-                ctxD.strokeStyle = '#00e5ff'; 
-                ctxD.strokeRect(gx, gy, state.rect.w, state.rect.h); // Borda azul do fantasma
-                ctxD.restore();
+                ctxO.save();
+                ctxO.globalAlpha = 0.7;
+                ctxO.drawImage(state.clip, gx, gy);
+                ctxO.strokeStyle = '#00e5ff';
+                ctxO.strokeRect(gx, gy, state.rect.w, state.rect.h);
+                ctxO.restore();
             }
         }
 
-        // --- Lógica Mouse Origem ---
+        // --- Mouse Origem ---
         cSrc.onmousedown = e => {
             if(!imgS) return;
             state.selecting = true;
@@ -189,41 +179,31 @@
         window.onmouseup = () => {
             if(state.selecting) {
                 state.selecting = false;
-                ctxS.drawImage(imgS, 0, 0); // Limpa para copiar
+                ctxS.drawImage(imgS, 0, 0);
                 let data = ctxS.getImageData(state.rect.x, state.rect.y, state.rect.w, state.rect.h);
-                drawSrc(); // Restaura visual
+                drawSrc();
                 createImageBitmap(data).then(bmp => { state.clip = bmp; log(`Copiado: ${state.rect.w}x${state.rect.h}`); });
             }
         };
 
-        // --- Lógica Mouse Destino (A CORREÇÃO ESTÁ AQUI) ---
+        // --- Mouse Destino ---
         cDest.onmousemove = e => {
             let p = getPos(cDest, e);
             $('pos').innerText = `${p.x}, ${p.y}`;
-            drawDest(p.x, p.y);
+            drawOverlay(p.x, p.y); // Apenas atualiza o overlay
         };
-        cDest.onmouseleave = () => drawDest();
+        cDest.onmouseleave = () => ctxO.clearRect(0,0,cOver.width, cOver.height);
 
         cDest.onmousedown = e => {
             let p = getPos(cDest, e);
             
-            // CORREÇÃO: Antes de colar, limpamos qualquer "fantasma" que esteja desenhado na tela
-            // Restaurando o backup limpo do histórico
-            if(state.history[state.hIdx]) {
-                ctxD.putImageData(state.history[state.hIdx], 0, 0);
-            } else {
-                ctxD.clearRect(0, 0, cDest.width, cDest.height);
-            }
-
+            // Ações afetam apenas o canvas de DADOS (ctxD)
             if(e.button === 0 && state.clip) {
-                // Agora colamos no canvas LIMPO
                 ctxD.drawImage(state.clip, p.x, p.y);
-                pushHistory(); // Salvamos o estado (Pixels + Sprite Novo)
-                drawDest(p.x, p.y); // E só agora desenhamos o fantasma de novo pra você ver
+                pushHistory();
             } else if(e.button === 2) {
                 ctxD.clearRect(p.x, p.y, state.rect.w || grid.w, state.rect.h || grid.h);
                 pushHistory();
-                drawDest(p.x, p.y);
             }
         };
         cDest.oncontextmenu = e => e.preventDefault();
@@ -231,13 +211,14 @@
         // --- Helpers ---
         function getPos(c, e) {
             let r = c.getBoundingClientRect();
-            let rx = (e.clientX - r.left) / state.zoom, ry = (e.clientY - r.top) / state.zoom;
+            let rx = e.clientX - r.left, ry = e.clientY - r.top;
             return { x: Math.floor(rx/grid.w)*grid.w, y: Math.floor(ry/grid.h)*grid.h };
         }
         function resizeDest(w, h) {
-            cDest.width = w; cDest.height = h;
+            cDest.width = cOver.width = w;
+            cDest.height = cOver.height = h;
             ctxD.imageSmoothingEnabled = false;
-            pushHistory(); drawDest();
+            pushHistory();
         }
         function pushHistory() {
             let data = ctxD.getImageData(0, 0, cDest.width, cDest.height);
@@ -248,8 +229,7 @@
         function undo() {
             if(state.hIdx > 0) {
                 state.hIdx--;
-                ctxD.putImageData(state.history[state.hIdx], 0, 0); // Restaura dados brutos
-                drawDest(); // Redesenha (sem fantasma)
+                ctxD.putImageData(state.history[state.hIdx], 0, 0);
                 log("Desfeito.");
             }
         }
@@ -284,11 +264,12 @@
         }
         function save() {
             let t = document.createElement('canvas'); t.width = cDest.width; t.height = cDest.height;
-            // Salva EXATAMENTE o que está no histórico (Pixels puros), ignorando o que está na tela (Fantasmas/Grades)
+            // Salva o último estado LIMPO do histórico
             t.getContext('2d').putImageData(state.history[state.hIdx], 0, 0);
-            let a = document.createElement('a'); a.download = 'tileset_final.png'; a.href = t.toDataURL(); a.click();
+            let a = document.createElement('a'); a.download = 'recurso_limpo.png'; a.href = t.toDataURL(); a.click();
         }
-        document.addEventListener('keydown', e => { if(e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); } });
+
+        init();
     </script>
 </body>
 </html>
